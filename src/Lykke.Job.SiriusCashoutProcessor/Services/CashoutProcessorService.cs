@@ -131,9 +131,15 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                             switch (item.Withdrawal.State)
                             {
                                 case WithdrawalState.Completed:
+                                    if (!Guid.TryParse(item.Withdrawal.TransferContext.WithdrawalReferenceId,
+                                        out var operationId))
+                                    {
+                                        operationId = Guid.Empty;
+                                    }
+
                                     _cqrsEngine.PublishEvent(new CashoutCompletedEvent
                                     {
-                                        OperationId = Guid.Parse(item.Withdrawal.TransferContext.WithdrawalReferenceId),
+                                        OperationId = operationId,
                                         ClientId = Guid.Parse(item.Withdrawal.AccountReferenceId),
                                         AssetId = assetId,
                                         Amount = Convert.ToDecimal(item.Withdrawal.Amount.Value),
