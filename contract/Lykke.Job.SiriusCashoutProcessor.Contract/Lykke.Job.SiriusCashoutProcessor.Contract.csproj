@@ -5,27 +5,27 @@
     <Version>1.0.0</Version>
     <Authors>Lykke</Authors>
     <Company>Lykke</Company>
-    <Description>Contract for the Lykke.Job.LykkeJob</Description>
-    <PackageLicenseUrl>https://github.com/LykkeCity/Lykke.Job.LykkeJob/blob/master/LICENSE</PackageLicenseUrl>
-    <PackageProjectUrl>https://github.com/LykkeCity/Lykke.Job.LykkeJob</PackageProjectUrl>
+    <Description>Contract for the Lykke.Job.SiriusCashoutProcessor</Description>
+    <PackageLicenseUrl>https://github.com/LykkeCity/Lykke.Job.SiriusCashoutProcessor/blob/master/LICENSE</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/LykkeCity/Lykke.Job.SiriusCashoutProcessor</PackageProjectUrl>
     <PackageIconUrl>https://avatars3.githubusercontent.com/u/14153330?v=3&amp;amp;s=200</PackageIconUrl>
-    <RepositoryUrl>https://github.com/LykkeCity/Lykke.Job.LykkeJob.git</RepositoryUrl>
+    <RepositoryUrl>https://github.com/LykkeCity/Lykke.Job.SiriusCashoutProcessor.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>Lykke;LykkeJob</PackageTags>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <DocumentationFile>bin\Debug\netstandard2.0\Lykke.Job.LykkeJob.Contract.xml</DocumentationFile>
+    <DocumentationFile>bin\Debug\netstandard2.0\Lykke.Job.SiriusCashoutProcessor.Contract.xml</DocumentationFile>
     <NoWarn>1701;1702;1705;1591</NoWarn>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <DocumentationFile>bin\Release\netstandard2.0\Lykke.Job.LykkeJob.Contract.xml</DocumentationFile>
+    <DocumentationFile>bin\Release\netstandard2.0\Lykke.Job.SiriusCashoutProcessor.Contract.xml</DocumentationFile>
     <NoWarn>1701;1702;1705;1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup Label="dotnet pack instructions">
-    <Content Include="$(OutputPath)Lykke.Job.LykkeJob.Contract.pdb">
+    <Content Include="$(OutputPath)Lykke.Job.SiriusCashoutProcessor.Contract.pdb">
       <Pack>true</Pack>
       <PackagePath>lib/netstandard2.0</PackagePath>
     </Content>
