@@ -1,0 +1,40 @@
+SiriusCashoutProcessorJob:
+  Db:
+    LogsConnString:
+      settings-key: SiriusCashoutProcessorJob-LogsConnString
+      types: [AzureTableStorage]
+    DataConnString:
+      settings-key: SiriusCashoutProcessorJob-DataConnString
+      types: [AzureTableStorage]
+  Cqrs:
+    RabbitConnectionString:
+      settings-key: RabbitSagas
+      types: [ RabbitMq ]
+SlackNotifications:
+    AzureQueue:
+        ConnectionString:
+            settings-key: SlackNotificationsConnString
+            types: [AzureTableStorage]
+        QueueName:
+            settings-key: SlackQueueName
+MonitoringServiceClient:
+    MonitoringServiceUrl:
+        settings-key: MonitoringServiceUrl
+SiriusApiServiceClient:
+  GrpcServiceUrl:
+    settings-key: SiriusApi-ServiceUrl
+  ApiKey:
+    settings-key: SiriusApi-ApiKey
+  BrokerAccountId:
+    settings-key: SiriusApi-BrokerAccountId
+MatchingEngineClient:
+  IpEndpoint:
+    Port:
+      settings-key: MatchingEngine-Port
+    Host:
+      settings-key: MatchingEngine-Host
+AssetsServiceClient:
+  ServiceUrl:
+    settings-key: AssetsServiceUrl
+  ExpirationPeriod:
+    settings-key: AssetsServiceExpirationPeriod
