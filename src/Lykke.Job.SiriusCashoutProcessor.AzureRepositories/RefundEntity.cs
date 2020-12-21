@@ -1,9 +1,12 @@
 ﻿using System;
 using Lykke.AzureStorage.Tables;
+using Lykke.AzureStorage.Tables.Entity.Annotation;
+using Lykke.AzureStorage.Tables.Entity.ValueTypesMerging;
 using Lykke.Job.SiriusCashoutProcessor.Domain.Repositories;
 
 namespace Lykke.Job.SiriusCashoutProcessor.AzureRepositories
 {
+    [ValueTypeMergingStrategy(ValueTypeMergingStrategy.UpdateAlways)]
     public class RefundEntity : AzureTableEntity, IRefund
     {
         public string Id { get; set; }
