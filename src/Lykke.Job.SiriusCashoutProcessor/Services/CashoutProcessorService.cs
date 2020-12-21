@@ -124,7 +124,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                     clientId = item.Withdrawal.TransferContext.AccountReferenceId,
                                     fees = item.Withdrawal.Fee.ToJson(),
                                     item.Withdrawal.State,
-                                    TransactionHash = item.Withdrawal.TransactionInfo.TransactionId
+                                    TransactionHash = item.Withdrawal.TransactionInfo?.TransactionId
                                 }.ToJson()
                             );
 
@@ -139,7 +139,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                         Amount = Convert.ToDecimal(item.Withdrawal.Amount.Value),
                                         Address = item.Withdrawal.DestinationDetails.Address,
                                         Tag = item.Withdrawal.DestinationDetails.Tag,
-                                        TransactionHash = item.Withdrawal.TransactionInfo.TransactionId,
+                                        TransactionHash = item.Withdrawal.TransactionInfo?.TransactionId,
                                         Timestamp = item.Withdrawal.UpdatedAt.ToDateTime().ToUniversalTime(),
                                     }, SiriusCashoutProcessorBoundedContext.Name);
 
