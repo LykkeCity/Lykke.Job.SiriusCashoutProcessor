@@ -9,5 +9,6 @@ namespace Lykke.Job.SiriusCashoutProcessor.Settings
         public SiriusApiServiceClientSettings SiriusApiServiceClient { get; set; }
         public MatchingEngineSettings MatchingEngineClient { get; set; }
         public AssetsServiceClientSettings AssetsServiceClient { get; set; }
+        public OperationsServiceClientSettings OperationsServiceClient { get; set; }
     }
 }

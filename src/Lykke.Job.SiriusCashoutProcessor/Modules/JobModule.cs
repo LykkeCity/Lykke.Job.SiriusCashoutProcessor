@@ -11,6 +11,7 @@ using Lykke.Job.SiriusCashoutProcessor.Settings;
 using Lykke.Sdk;
 using Lykke.Sdk.Health;
 using Lykke.Service.Assets.Client;
+using Lykke.Service.Operations.Client;
 using Lykke.SettingsReader;
 
 namespace Lykke.Job.SiriusCashoutProcessor.Modules
@@ -74,6 +75,8 @@ namespace Lykke.Job.SiriusCashoutProcessor.Modules
                 AssetServiceSettings.Create(
                     new Uri(_settings.CurrentValue.AssetsServiceClient.ServiceUrl),
                     _settings.CurrentValue.AssetsServiceClient.ExpirationPeriod));
+
+            builder.RegisterOperationsClient(_settings.CurrentValue.OperationsServiceClient.ServiceUrl);
         }
     }
 }

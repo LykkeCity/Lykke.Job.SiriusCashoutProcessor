@@ -15,6 +15,8 @@ using Lykke.Job.SiriusCashoutProcessor.Domain.Repositories;
 using Lykke.MatchingEngine.Connector.Abstractions.Services;
 using Lykke.MatchingEngine.Connector.Models.Api;
 using Lykke.Service.Assets.Client;
+using Lykke.Service.Assets.Client.Models;
+using Lykke.Service.Operations.Client;
 using Newtonsoft.Json;
 using Polly;
 using Swisschain.Sirius.Api.ApiClient;
@@ -30,6 +32,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
         private readonly IMatchingEngineClient _meClient;
         private readonly IAssetsServiceWithCache _assetsService;
         private readonly IApiClient _apiClient;
+        private readonly IOperationsClient _operationsClient;
         private readonly ICqrsEngine _cqrsEngine;
         private readonly long _brokerAccountId;
         private long? _lastCursor;
@@ -43,6 +46,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
             IMatchingEngineClient meClient,
             IAssetsServiceWithCache assetsService,
             IApiClient apiClient,
+            IOperationsClient operationsClient,
             ICqrsEngine cqrsEngine,
             long brokerAccountId,
             ILogFactory logFactory
@@ -54,6 +58,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
             _meClient = meClient;
             _assetsService = assetsService;
             _apiClient = apiClient;
+            _operationsClient = operationsClient;
             _cqrsEngine = cqrsEngine;
             _brokerAccountId = brokerAccountId;
             _log = logFactory.CreateLog(this);
@@ -109,9 +114,9 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
 
                             _log.Info("Withdrawal update", context: $"withdrawal: {item.ToJson()}");
 
-                            string assetId = assets.FirstOrDefault(x => x.SiriusAssetId == item.Withdrawal.AssetId)?.Id;
+                            Asset asset = assets.FirstOrDefault(x => x.SiriusAssetId == item.Withdrawal.AssetId);
 
-                            if (string.IsNullOrEmpty(assetId))
+                            if (asset == null)
                             {
                                 _log.Warning("Lykke asset not found", context: new {siriusAssetId = item.Withdrawal.AssetId, withdrawalId = item.Withdrawal.Id});
                                 continue;
@@ -128,20 +133,19 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                 }.ToJson()
                             );
 
+                            if (!Guid.TryParse(item.Withdrawal.TransferContext.WithdrawalReferenceId, out var operationId))
+                            {
+                                operationId = Guid.Empty;
+                            }
+
                             switch (item.Withdrawal.State)
                             {
                                 case WithdrawalState.Completed:
-                                    if (!Guid.TryParse(item.Withdrawal.TransferContext.WithdrawalReferenceId,
-                                        out var operationId))
-                                    {
-                                        operationId = Guid.Empty;
-                                    }
-
                                     _cqrsEngine.PublishEvent(new CashoutCompletedEvent
                                     {
                                         OperationId = operationId,
                                         ClientId = Guid.Parse(item.Withdrawal.AccountReferenceId),
-                                        AssetId = assetId,
+                                        AssetId = asset.Id,
                                         Amount = Convert.ToDecimal(item.Withdrawal.Amount.Value),
                                         Address = item.Withdrawal.DestinationDetails.Address,
                                         Tag = item.Withdrawal.DestinationDetails.Tag,
@@ -155,59 +159,56 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                 case WithdrawalState.Failed:
                                 case WithdrawalState.Rejected:
                                 {
-                                    var document = JsonConvert.DeserializeObject<WithdrawalDocument>(item.Withdrawal.TransferContext.Document);
-
-                                    var asset = assets.FirstOrDefault(x => x.SiriusAssetId == document.AssetId);
-
-                                    if (asset == null)
-                                    {
-                                        _log.Error(message: $"Can't find the asset for sirius assetId = {document.AssetId}");
-                                        return;
-                                    }
-
                                     await _withdrawalLogsRepository.AddAsync(
                                         item.Withdrawal.TransferContext.WithdrawalReferenceId,
                                         "Withdrawal failed, processing refund in ME",
                                         new {WithdrawalError = item.Withdrawal.Error?.ToJson()}.ToJson());
+
+                                    decimal amount = Convert.ToDecimal(item.Withdrawal.Amount.Value);
+
+                                    var operation = await _operationsClient.Get(operationId);
+
+                                    var operationContext = JsonConvert.DeserializeObject<OperationContext>(operation.ContextJson);
+
+                                    decimal fee = operationContext.Fee.Type == "Absolute"
+                                        ? operationContext.Fee.Size
+                                        : amount * operationContext.Fee.Size;
 
                                     var refund = await _refundsRepository.GetAsync(item.Withdrawal.AccountReferenceId,
                                                      item.Withdrawal.TransferContext.WithdrawalReferenceId) ??
                                                  await _refundsRepository.AddAsync(
                                                      item.Withdrawal.TransferContext.WithdrawalReferenceId,
                                                      item.Withdrawal.AccountReferenceId,
+                                                     operationContext.GlobalSettings.FeeSettings.TargetClients.Cashout,
                                                      asset.Id,
                                                      asset.SiriusAssetId,
-                                                     Convert.ToDecimal(item.Withdrawal.Amount.Value));
+                                                     amount, fee);
 
-                                    var policy = Policy
-                                        .Handle<TaskCanceledException>(exception =>
-                                        {
-                                            _log.Warning($"Retry on TaskCanceledException", context: $"clientId = {refund.ClientId}, assetId = {assetId}, amount = {refund.Amount}");
-                                            return true;
-                                        })
-                                        .OrResult<MeResponseModel>(r =>
-                                        {
-                                            _log.Warning($"Response from ME: {(r == null ? "null" : r.ToJson())}");
-                                            _withdrawalLogsRepository.AddAsync(item.Withdrawal.TransferContext.WithdrawalReferenceId, "Response from ME",
-                                                new {refund.ClientId, refund.OperationId, assetId, refund.Amount, meResponse = r == null ? "null" : r.ToJson()}.ToJson()).GetAwaiter().GetResult();
-                                            return r == null || r.Status == MeStatusCodes.Runtime;
-                                        })
-                                        .WaitAndRetryAsync(5, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
-
-                                    var result = await policy.ExecuteAsync(async() =>
+                                    if (refund.FeeAmount > 0)
                                     {
-                                        await _withdrawalLogsRepository.AddAsync(refund.Id, "Send refund to ME",
-                                            new {refund.ClientId, refund.OperationId, assetId, refund.Amount}.ToJson()
-                                        );
+                                        var feeReturnResult = await ReturnFeeAsync(refund);
 
-                                        var res = await _meClient.CashInOutAsync(refund.OperationId,
-                                            refund.ClientId,
-                                            assetId,
-                                            Convert.ToDouble(refund.Amount)
-                                        );
+                                        if (feeReturnResult != null && (feeReturnResult.Status == MeStatusCodes.Ok || feeReturnResult.Status == MeStatusCodes.Duplicate))
+                                        {
+                                            _log.Info("Fee cashed out from fee wallet", context: $"operationId = {refund.FeeOperationId}");
 
-                                        return res;
-                                    });
+                                            await _withdrawalLogsRepository.AddAsync(refund.Id, "Fee cashed out from fee wallet",
+                                                new {refund.FeeOperationId, refund.FeeClientId, refund.FeeAmount, refund.AssetId}.ToJson());
+                                        }
+                                        else
+                                        {
+                                            _log.Info("Can't cashout fee from fee wallet", context: $"operationId = {refund.FeeOperationId}");
+
+                                            await _withdrawalLogsRepository.AddAsync(refund.Id, "Can't cashout fee from fee wallet",
+                                                new {refund.FeeOperationId, refund.FeeClientId, refund.FeeAmount, refund.AssetId,
+                                                    error = feeReturnResult == null
+                                                    ? "response from ME is null"
+                                                    : $"{feeReturnResult.Status}: {feeReturnResult.Message}"}.ToJson());
+                                        }
+                                    }
+
+
+                                    var result = await RefundAsync(refund);
 
                                     if (result != null && (result.Status == MeStatusCodes.Ok || result.Status == MeStatusCodes.Duplicate))
                                     {
@@ -283,6 +284,76 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
 
                 await Task.Delay(5000);
             }
+        }
+
+        private async Task<MeResponseModel> RefundAsync(IRefund refund)
+        {
+            var policy = Policy
+                .Handle<TaskCanceledException>(exception =>
+                {
+                    _log.Warning($"Retry on TaskCanceledException", context: $"clientId = {refund.ClientId}, assetId = {refund.AssetId}, amount = {refund.Amount + refund.FeeAmount}");
+                    return true;
+                })
+                .OrResult<MeResponseModel>(r =>
+                {
+                    _log.Warning($"Response from ME: {(r == null ? "null" : r.ToJson())}");
+                    _withdrawalLogsRepository.AddAsync(refund.Id, "Response from ME",
+                        new {refund.ClientId, refund.OperationId, refund.AssetId, refund.Amount, refund.FeeAmount, meResponse = r == null ? "null" : r.ToJson()}.ToJson()).GetAwaiter().GetResult();
+                    return r == null || r.Status == MeStatusCodes.Runtime;
+                })
+                .WaitAndRetryAsync(5, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
+
+            var result = await policy.ExecuteAsync(async() =>
+            {
+                await _withdrawalLogsRepository.AddAsync(refund.Id, "Send refund to ME",
+                    new {refund.ClientId, refund.OperationId, refund.AssetId, refund.Amount}.ToJson()
+                );
+
+                var res = await _meClient.CashInOutAsync(refund.OperationId,
+                    refund.ClientId,
+                    refund.AssetId,
+                    Convert.ToDouble(refund.Amount + refund.FeeAmount)
+                );
+
+                return res;
+            });
+
+            return result;
+        }
+
+        private async Task<MeResponseModel> ReturnFeeAsync(IRefund refund)
+        {
+            var policy = Policy
+                .Handle<TaskCanceledException>(exception =>
+                {
+                    _log.Warning("Retry on TaskCanceledException", context: $"feeClientId = {refund.FeeClientId}, assetId = {refund.AssetId}, amount = {refund.FeeAmount}");
+                    return true;
+                })
+                .OrResult<MeResponseModel>(r =>
+                {
+                    _log.Warning($"Response from ME: {(r == null ? "null" : r.ToJson())}");
+                    _withdrawalLogsRepository.AddAsync(refund.Id, "Response from ME",
+                        new {refund.FeeOperationId, refund.AssetId, refund.FeeAmount, meResponse = r == null ? "null" : r.ToJson()}.ToJson()).GetAwaiter().GetResult();
+                    return r == null || r.Status == MeStatusCodes.Runtime;
+                })
+                .WaitAndRetryAsync(5, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
+
+            var result = await policy.ExecuteAsync(async() =>
+            {
+                await _withdrawalLogsRepository.AddAsync(refund.Id, "Send cash out for fee to ME",
+                    new {refund.FeeClientId, refund.FeeOperationId, refund.AssetId, refund.FeeAmount}.ToJson()
+                );
+
+                var res = await _meClient.CashInOutAsync(refund.FeeOperationId,
+                    refund.FeeClientId,
+                    refund.AssetId,
+                    -Convert.ToDouble(refund.FeeAmount)
+                );
+
+                return res;
+            });
+
+            return result;
         }
     }
 }

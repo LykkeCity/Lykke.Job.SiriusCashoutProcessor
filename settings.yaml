@@ -38,3 +38,6 @@ AssetsServiceClient:
     settings-key: AssetsServiceUrl
   ExpirationPeriod:
     settings-key: AssetsServiceExpirationPeriod
+OperationsServiceClient:
+  ServiceUrl:
+    settings-key: OperationsServiceUrl
