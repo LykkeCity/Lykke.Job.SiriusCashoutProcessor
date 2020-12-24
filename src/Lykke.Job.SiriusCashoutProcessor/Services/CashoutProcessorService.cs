@@ -171,8 +171,8 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                     var operationContext = JsonConvert.DeserializeObject<OperationContext>(operation.ContextJson);
 
                                     decimal fee = operationContext.Fee.Type == "Absolute"
-                                        ? operationContext.Fee.Size
-                                        : amount * operationContext.Fee.Size;
+                                        ? operationContext.Fee.Size.TruncateDecimalPlaces(asset.Accuracy)
+                                        : (amount * operationContext.Fee.Size).TruncateDecimalPlaces(asset.Accuracy);
 
                                     var refund = await _refundsRepository.GetAsync(item.Withdrawal.AccountReferenceId,
                                                      item.Withdrawal.TransferContext.WithdrawalReferenceId) ??
