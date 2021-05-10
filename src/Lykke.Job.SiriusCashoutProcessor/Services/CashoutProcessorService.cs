@@ -109,8 +109,11 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                             if (item.WithdrawalUpdateId <= _lastCursor)
                                 continue;
 
-                            if (string.IsNullOrEmpty(item.Withdrawal.AccountReferenceId))
+                            if (string.IsNullOrWhiteSpace(item.Withdrawal.UserNativeId))
+                            {
+                                _log.Warning("UserNativeId is empty");
                                 continue;
+                            }
 
                             _log.Info("Withdrawal update", context: $"withdrawal: {item.ToJson()}");
 
@@ -126,7 +129,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                 new
                                 {
                                     siriusWithdrawalId = item.Withdrawal.Id,
-                                    clientId = item.Withdrawal.TransferContext.AccountReferenceId,
+                                    clientId = item.Withdrawal.UserNativeId,
                                     fees = item.Withdrawal.Fee.ToJson(),
                                     item.Withdrawal.State,
                                     TransactionHash = item.Withdrawal.TransactionInfo?.TransactionId
@@ -144,7 +147,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                     _cqrsEngine.PublishEvent(new CashoutCompletedEvent
                                     {
                                         OperationId = operationId,
-                                        ClientId = Guid.Parse(item.Withdrawal.AccountReferenceId),
+                                        ClientId = Guid.Parse(item.Withdrawal.UserNativeId),
                                         AssetId = asset.Id,
                                         Amount = Convert.ToDecimal(item.Withdrawal.Amount.Value),
                                         Address = item.Withdrawal.DestinationDetails.Address,
@@ -158,6 +161,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                     break;
                                 case WithdrawalState.Failed:
                                 case WithdrawalState.Rejected:
+                                //case WithdrawalState.ref: TODO: Refunded state?
                                 {
                                     await _withdrawalLogsRepository.AddAsync(
                                         item.Withdrawal.TransferContext.WithdrawalReferenceId,
@@ -174,11 +178,11 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                         ? operationContext.Fee.Size.TruncateDecimalPlaces(asset.Accuracy, true)
                                         : (amount * operationContext.Fee.Size).TruncateDecimalPlaces(asset.Accuracy, true);
 
-                                    var refund = await _refundsRepository.GetAsync(item.Withdrawal.AccountReferenceId,
+                                    var refund = await _refundsRepository.GetAsync(item.Withdrawal.UserNativeId,
                                                      item.Withdrawal.TransferContext.WithdrawalReferenceId) ??
                                                  await _refundsRepository.AddAsync(
                                                      item.Withdrawal.TransferContext.WithdrawalReferenceId,
-                                                     item.Withdrawal.AccountReferenceId,
+                                                     item.Withdrawal.UserNativeId,
                                                      operationContext.GlobalSettings.FeeSettings.TargetClients.Cashout,
                                                      asset.Id,
                                                      asset.SiriusAssetId,
@@ -206,7 +210,6 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                                     : $"{feeReturnResult.Status}: {feeReturnResult.Message}"}.ToJson());
                                         }
                                     }
-
 
                                     var result = await RefundAsync(refund);
 
