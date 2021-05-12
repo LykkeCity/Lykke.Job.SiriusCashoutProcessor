@@ -10,7 +10,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Domain
 
         public long? AccountId { get; set; }
 
-        public string AccountReferenceId { get; set; }
+        public string UserNativeId { get; set; }
 
         public string WithdrawalReferenceId { get; set; }
 

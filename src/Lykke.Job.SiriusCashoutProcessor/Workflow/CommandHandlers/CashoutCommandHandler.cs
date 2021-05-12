@@ -34,13 +34,14 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
         {
             _log.Info("Got cashout command", context: $"command: {command.ToJson()}" );
 
+
             var result = await _siriusApiClient.Withdrawals.ExecuteAsync(new WithdrawalExecuteRequest
             {
                 RequestId = $"{_brokerAccountId}_{command.OperationId}",
                 Document = new WithdrawalDocument
                 {
                     BrokerAccountId = _brokerAccountId,
-                    AccountReferenceId = command.ClientId.ToString(),
+                    UserNativeId = command.ClientId.ToString(),
                     WithdrawalReferenceId = command.OperationId.ToString(),
                     AssetId = command.SiriusAssetId,
                     Amount = command.Amount,
