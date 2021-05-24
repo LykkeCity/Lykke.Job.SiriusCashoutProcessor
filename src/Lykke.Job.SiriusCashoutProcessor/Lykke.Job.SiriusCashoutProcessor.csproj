@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp2.2</TargetFramework>
+    <TargetFramework>net5.0</TargetFramework>
     <Version>1.0.1</Version>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -19,7 +19,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Lykke.Common.ApiLibrary" Version="2.4.2" />
+    <PackageReference Include="Lykke.Common.ApiLibrary" Version="3.1.1" />
     <PackageReference Include="Lykke.Contracts" Version="1.0.51" />
     <PackageReference Include="Lykke.Cqrs" Version="9.0.1" />
     <PackageReference Include="Lykke.Logs" Version="7.4.0" />
@@ -27,7 +27,7 @@
     <PackageReference Include="Lykke.Messaging" Version="6.3.1" />
     <PackageReference Include="Lykke.Messaging.RabbitMq" Version="2.2.2" />
     <PackageReference Include="Lykke.MonitoringServiceApiCaller" Version="1.8.0" />
-    <PackageReference Include="Lykke.Sdk" Version="5.18.0" />
+    <PackageReference Include="Antares.Sdk" Version="1.1.0-beta.4" />
     <PackageReference Include="Lykke.Service.Assets.Client" Version="4.6.0" />
     <PackageReference Include="Lykke.Service.Operations.Client" Version="2.13.0" />
     <PackageReference Include="Lykke.SettingsReader" Version="5.3.0" />
@@ -38,6 +38,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Mvc" Version="2.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.StaticFiles" Version="2.2.0" />
+    <PackageReference Include="Swisschain.Extensions.Encryption" Version="1.0.0" />
     <PackageReference Include="Swisschain.Sirius.Api.ApiClient" Version="1.0.0-beta.18" />
   </ItemGroup>
   <ItemGroup>

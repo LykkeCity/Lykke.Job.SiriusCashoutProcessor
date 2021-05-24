@@ -1,8 +1,8 @@
 ﻿using System.Threading.Tasks;
+using Antares.Sdk.Services;
 using Common.Log;
 using Lykke.Common.Log;
 using Lykke.Cqrs;
-using Lykke.Sdk;
 
 namespace Lykke.Job.SiriusCashoutProcessor.Services
 {

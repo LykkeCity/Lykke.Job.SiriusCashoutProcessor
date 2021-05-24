@@ -1,16 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Antares.Sdk.Services;
 using Common;
 using Common.Log;
 using Lykke.Common.Log;
-using Lykke.Sdk;
 
 namespace Lykke.Job.SiriusCashoutProcessor.Services
 {
-    // NOTE: Sometimes, shutdown process should be expressed explicitly. 
+    // NOTE: Sometimes, shutdown process should be expressed explicitly.
     // If this is your case, use this class to manage shutdown.
-    // For example, sometimes some state should be saved only after all incoming message processing and 
+    // For example, sometimes some state should be saved only after all incoming message processing and
     // all periodical handler was stopped, and so on.
     public class ShutdownManager : IShutdownManager
     {
@@ -18,7 +18,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
         private readonly IEnumerable<IStopable> _items;
 
         public ShutdownManager(
-            ILogFactory logFactory, 
+            ILogFactory logFactory,
             IEnumerable<IStopable> items)
         {
             _log = logFactory.CreateLog(this);
@@ -39,7 +39,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                     _log.Warning($"Unable to stop {item.GetType().Name}", ex);
                 }
             }
-            
+
             await Task.CompletedTask;
         }
     }

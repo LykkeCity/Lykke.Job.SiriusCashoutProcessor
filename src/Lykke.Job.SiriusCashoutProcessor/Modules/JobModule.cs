@@ -1,4 +1,6 @@
 ﻿using System;
+using Antares.Sdk.Health;
+using Antares.Sdk.Services;
 using Autofac;
 using AzureStorage.Tables;
 using Common;
@@ -8,8 +10,6 @@ using Lykke.Job.SiriusCashoutProcessor.AzureRepositories;
 using Lykke.Job.SiriusCashoutProcessor.Domain.Repositories;
 using Lykke.Job.SiriusCashoutProcessor.Services;
 using Lykke.Job.SiriusCashoutProcessor.Settings;
-using Lykke.Sdk;
-using Lykke.Sdk.Health;
 using Lykke.Service.Assets.Client;
 using Lykke.Service.Operations.Client;
 using Lykke.SettingsReader;
