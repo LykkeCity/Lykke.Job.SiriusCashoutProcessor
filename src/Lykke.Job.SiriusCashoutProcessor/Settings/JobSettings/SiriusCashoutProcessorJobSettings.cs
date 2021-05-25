@@ -4,5 +4,6 @@
     {
         public DbSettings Db { get; set; }
         public CqrsSettings Cqrs { get; set; }
+        public KeyVaultSettings KeyVault { get; set; }
     }
 }
