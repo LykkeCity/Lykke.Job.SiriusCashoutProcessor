@@ -6,4 +6,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Lykke.Job.SiriusCashoutProcessor.Domain\Lykke.Job.SiriusCashoutProcessor.Domain.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Azure.KeyVault" Version="3.0.5" />
+  </ItemGroup>
 </Project>

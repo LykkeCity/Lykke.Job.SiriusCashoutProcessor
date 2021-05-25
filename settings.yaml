@@ -10,6 +10,15 @@ SiriusCashoutProcessorJob:
     RabbitConnectionString:
       settings-key: RabbitSagas
       types: [ RabbitMq ]
+  KeyVault:
+    VaultBaseUrl:
+      settings-key: SiriusCashoutProcessorJob-KeyVault-VaultBaseUrl
+    ClientId:
+      settings-key: SiriusCashoutProcessorJob-KeyVault-ClientId
+    ClientSecret:
+      settings-key: SiriusCashoutProcessorJob-KeyVault-ClientSecret
+    PrivateKeyName:
+      settings-key: SiriusCashoutProcessorJob-KeyVault-PrivateKeyName
 SlackNotifications:
     AzureQueue:
         ConnectionString:
