@@ -26,10 +26,9 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
 
         public async Task StartAsync()
         {
+            await _privateKeyService.InitAsync();
             _cqrsEngine.StartSubscribers();
             _cqrsEngine.StartProcesses();
-
-            await _privateKeyService.InitAsync();
         }
     }
 }
