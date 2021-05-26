@@ -44,7 +44,6 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
             var document = new WithdrawalDocument
             {
                 BrokerAccountId = _brokerAccountId,
-                UserNativeId = command.ClientId.ToString(),
                 WithdrawalReferenceId = command.OperationId.ToString(),
                 AssetId = command.SiriusAssetId,
                 Amount = command.Amount,
