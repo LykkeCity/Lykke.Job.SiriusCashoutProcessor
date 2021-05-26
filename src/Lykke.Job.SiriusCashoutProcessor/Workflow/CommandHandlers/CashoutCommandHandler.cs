@@ -52,7 +52,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
                     Address = command.Address,
                     Tag = command.Tag ?? string.Empty
                 }
-            }.ToJson();
+            }.ToJson().Replace("\"", "\\\"");
 
             var signatureBytes = _encryptionService.GenerateSignature(Encoding.UTF8.GetBytes(document),  _privateKeyService.GetPrivateKey());
             var signature = Convert.ToBase64String(signatureBytes);
