@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System;
+using System.Text;
 using System.Threading.Tasks;
 using Common;
 using Common.Log;
@@ -19,6 +20,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
         private readonly IApiClient _siriusApiClient;
         private readonly PrivateKeyService _privateKeyService;
         private readonly ILog _log;
+        private readonly AsymmetricEncryptionService _encryptionService;
 
         public CashoutCommandHandler(
             long brokerAccountId,
@@ -31,6 +33,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
             _siriusApiClient = siriusApiClient;
             _privateKeyService = privateKeyService;
             _log = logFactory.CreateLog(this);
+            _encryptionService = new AsymmetricEncryptionService();
         }
 
         [UsedImplicitly]
@@ -52,10 +55,8 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
                 }
             }.ToJson();
 
-            var signatureBytes = new AsymmetricEncryptionService().GenerateSignature(Encoding.UTF8.GetBytes(document),
-                _privateKeyService.GetPrivateKey());
-
-            var signature = Encoding.UTF8.GetString(signatureBytes);
+            var signatureBytes = _encryptionService.GenerateSignature(Encoding.UTF8.GetBytes(document),  _privateKeyService.GetPrivateKey());
+            var signature = Convert.ToBase64String(signatureBytes);
 
             var result = await _siriusApiClient.Withdrawals.ExecuteAsync(new WithdrawalExecuteRequest
             {

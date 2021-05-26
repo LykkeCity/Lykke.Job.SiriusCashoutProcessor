@@ -32,7 +32,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.DomainServices
             try
             {
                 var secretBundle = await _keyVaultClient.GetSecretAsync(_vaultBaseUrl, _keyName);
-                _privateKey = secretBundle.Value;
+                _privateKey = secretBundle.Value.Replace("\\r\\n", "\n");
             }
             catch (Exception ex)
             {
