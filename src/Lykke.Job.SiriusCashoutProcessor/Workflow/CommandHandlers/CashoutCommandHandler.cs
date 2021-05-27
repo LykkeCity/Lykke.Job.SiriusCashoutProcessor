@@ -44,6 +44,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
             var document = new WithdrawalDocument
             {
                 BrokerAccountId = _brokerAccountId,
+                UserNativeId = command.ClientId.ToString(),
                 WithdrawalReferenceId = command.OperationId.ToString(),
                 AssetId = command.SiriusAssetId,
                 Amount = command.Amount,
@@ -52,7 +53,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
                     Address = command.Address,
                     Tag = command.Tag ?? string.Empty
                 }
-            }.ToJson().Replace("\"", "\\\"");
+            }.ToJson();
 
             var signatureBytes = _encryptionService.GenerateSignature(Encoding.UTF8.GetBytes(document),  _privateKeyService.GetPrivateKey());
             var signature = Convert.ToBase64String(signatureBytes);
