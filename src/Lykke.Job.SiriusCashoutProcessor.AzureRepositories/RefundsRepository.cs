@@ -14,9 +14,9 @@ namespace Lykke.Job.SiriusCashoutProcessor.AzureRepositories
             _tableStorage = tableStorage;
         }
 
-        public async Task<IRefund> AddAsync(string id, string clientId, string feeClientId, string assetId, long siriusAssetId, decimal amount, decimal feeAmount)
+        public async Task<IRefund> AddAsync(string id, string clientId, string walletId, string feeClientId, string assetId, long siriusAssetId, decimal amount, decimal feeAmount)
         {
-            var entity = RefundEntity.Create(id, clientId, feeClientId, assetId, siriusAssetId, amount, feeAmount);
+            var entity = RefundEntity.Create(id, clientId, walletId, feeClientId, assetId, siriusAssetId, amount, feeAmount);
             await _tableStorage.InsertOrReplaceAsync(entity);
             return entity;
         }
