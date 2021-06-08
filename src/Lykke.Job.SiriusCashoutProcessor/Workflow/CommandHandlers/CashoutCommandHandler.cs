@@ -49,7 +49,8 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
                     {
                         Address = command.Address,
                         Tag = command.Tag ?? string.Empty
-                    }
+                    },
+                    AccountReferenceId = command.WalletId?.ToString()
                 }.ToJson()
             });
 

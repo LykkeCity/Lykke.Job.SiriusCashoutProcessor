@@ -1,4 +1,5 @@
-﻿using Swisschain.Sirius.Api.ApiContract.Withdrawal;
+﻿using System;
+using Swisschain.Sirius.Api.ApiContract.Withdrawal;
 
 namespace Lykke.Job.SiriusCashoutProcessor.Domain
 {
@@ -19,5 +20,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Domain
         public decimal Amount { get; set; }
 
         public DestinationDetails DestinationDetails { get; set; }
+        
+        public string AccountReferenceId { get; set; }
     }
 }

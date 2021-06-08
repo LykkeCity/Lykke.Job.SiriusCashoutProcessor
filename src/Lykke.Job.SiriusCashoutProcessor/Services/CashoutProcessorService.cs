@@ -130,6 +130,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                 {
                                     siriusWithdrawalId = item.Withdrawal.Id,
                                     clientId = item.Withdrawal.UserNativeId,
+                                    walletId = item.Withdrawal.AccountReferenceId,
                                     fees = item.Withdrawal.Fee.ToJson(),
                                     item.Withdrawal.State,
                                     TransactionHash = item.Withdrawal.TransactionInfo?.TransactionId
@@ -141,6 +142,10 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                 operationId = Guid.Empty;
                             }
 
+                            var walletId = !string.IsNullOrWhiteSpace(item.Withdrawal.AccountReferenceId)
+                                ? Guid.Parse(item.Withdrawal.AccountReferenceId)
+                                : default(Guid?);
+
                             switch (item.Withdrawal.State)
                             {
                                 case WithdrawalState.Completed:
@@ -148,6 +153,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                     {
                                         OperationId = operationId,
                                         ClientId = Guid.Parse(item.Withdrawal.UserNativeId),
+                                        WalletId = walletId,
                                         AssetId = asset.Id,
                                         Amount = Convert.ToDecimal(item.Withdrawal.Amount.Value),
                                         Address = item.Withdrawal.DestinationDetails.Address,
@@ -183,6 +189,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                                  await _refundsRepository.AddAsync(
                                                      item.Withdrawal.TransferContext.WithdrawalReferenceId,
                                                      item.Withdrawal.UserNativeId,
+                                                     walletId?.ToString(),
                                                      operationContext.GlobalSettings.FeeSettings.TargetClients.Cashout,
                                                      asset.Id,
                                                      asset.SiriusAssetId,
@@ -313,7 +320,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                 );
 
                 var res = await _meClient.CashInOutAsync(refund.OperationId,
-                    refund.ClientId,
+                    refund.WalletId ?? refund.ClientId,
                     refund.AssetId,
                     Convert.ToDouble(refund.Amount + refund.FeeAmount)
                 );
@@ -347,7 +354,8 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                     new {refund.FeeClientId, refund.FeeOperationId, refund.AssetId, refund.FeeAmount}.ToJson()
                 );
 
-                var res = await _meClient.CashInOutAsync(refund.FeeOperationId,
+                var res = await _meClient.CashInOutAsync(
+                    refund.FeeOperationId,
                     refund.FeeClientId,
                     refund.AssetId,
                     -Convert.ToDouble(refund.FeeAmount)
