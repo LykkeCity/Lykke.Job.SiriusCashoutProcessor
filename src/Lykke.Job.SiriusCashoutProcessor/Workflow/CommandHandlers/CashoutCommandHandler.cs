@@ -52,7 +52,8 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
                 {
                     Address = command.Address,
                     Tag = command.Tag ?? string.Empty
-                }
+                },
+                AccountReferenceId = command.WalletId?.ToString()
             }.ToJson();
 
             var signatureBytes = _encryptionService.GenerateSignature(Encoding.UTF8.GetBytes(document),  _privateKeyService.GetPrivateKey());

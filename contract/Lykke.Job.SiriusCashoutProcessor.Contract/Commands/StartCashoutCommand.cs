@@ -13,5 +13,6 @@ namespace Lykke.Job.SiriusCashoutProcessor.Contract.Commands
         public string Address { get; set; }
         public string Tag { get; set; }
         public Guid ClientId { get; set; }
+        public Guid? WalletId { set; get; }
     }
 }
