@@ -1,4 +1,6 @@
 ﻿using System;
+using Antares.Sdk.Health;
+using Antares.Sdk.Services;
 using Autofac;
 using AzureStorage.Tables;
 using Common;
@@ -6,13 +8,14 @@ using JetBrains.Annotations;
 using Lykke.Common.Log;
 using Lykke.Job.SiriusCashoutProcessor.AzureRepositories;
 using Lykke.Job.SiriusCashoutProcessor.Domain.Repositories;
+using Lykke.Job.SiriusCashoutProcessor.DomainServices;
 using Lykke.Job.SiriusCashoutProcessor.Services;
 using Lykke.Job.SiriusCashoutProcessor.Settings;
-using Lykke.Sdk;
-using Lykke.Sdk.Health;
 using Lykke.Service.Assets.Client;
 using Lykke.Service.Operations.Client;
 using Lykke.SettingsReader;
+using Microsoft.Azure.KeyVault;
+using Microsoft.IdentityModel.Clients.ActiveDirectory;
 
 namespace Lykke.Job.SiriusCashoutProcessor.Modules
 {
@@ -77,6 +80,28 @@ namespace Lykke.Job.SiriusCashoutProcessor.Modules
                     _settings.CurrentValue.AssetsServiceClient.ExpirationPeriod));
 
             builder.RegisterOperationsClient(_settings.CurrentValue.OperationsServiceClient.ServiceUrl);
+
+            builder.RegisterType<PrivateKeyService>()
+                .WithParameter(new NamedParameter("vaultBaseUrl", _settings.CurrentValue.SiriusCashoutProcessorJob.KeyVault.VaultBaseUrl))
+                .WithParameter(new NamedParameter("keyName", _settings.CurrentValue.SiriusCashoutProcessorJob.KeyVault.PrivateKeyName))
+                .SingleInstance();
+
+            builder.RegisterInstance(
+                new KeyVaultClient(
+                    async (string authority, string resource, string scope) =>
+                    {
+                        var authContext = new AuthenticationContext(authority);
+                        var clientCred = new ClientCredential(_settings.CurrentValue.SiriusCashoutProcessorJob.KeyVault.ClientId,
+                            _settings.CurrentValue.SiriusCashoutProcessorJob.KeyVault.ClientSecret);
+                        var result = await authContext.AcquireTokenAsync(resource, clientCred);
+                        if (result == null)
+                        {
+                            throw new InvalidOperationException("Failed to retrieve access token for Key Vault");
+                        }
+
+                        return result.AccessToken;
+                    }
+                ));
         }
     }
 }

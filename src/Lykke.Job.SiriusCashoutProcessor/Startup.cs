@@ -2,8 +2,10 @@
 using Lykke.Job.SiriusCashoutProcessor.Settings;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
-using System;
-using Lykke.Sdk;
+using Antares.Sdk;
+using Autofac;
+using Lykke.SettingsReader;
+using Microsoft.Extensions.Configuration;
 
 namespace Lykke.Job.SiriusCashoutProcessor
 {
@@ -16,10 +18,13 @@ namespace Lykke.Job.SiriusCashoutProcessor
             ApiVersion = "v1"
         };
 
+        private IReloadingManagerWithConfiguration<AppSettings> _settings;
+        private LykkeServiceOptions<AppSettings> _lykkeOptions;
+
         [UsedImplicitly]
-        public IServiceProvider ConfigureServices(IServiceCollection services)
+        public void ConfigureServices(IServiceCollection services)
         {
-            return services.BuildServiceProvider<AppSettings>(options =>
+            (_lykkeOptions, _settings) = services.ConfigureServices<AppSettings>(options =>
             {
                 options.SwaggerOptions = _swaggerOptions;
 
@@ -27,38 +32,7 @@ namespace Lykke.Job.SiriusCashoutProcessor
                 {
                     logs.AzureTableName = "SiriusCashoutProcessorJobLog";
                     logs.AzureTableConnectionStringResolver = settings => settings.SiriusCashoutProcessorJob.Db.LogsConnString;
-
-                    // TODO: You could add extended logging configuration here:
-                    /* 
-                    logs.Extended = extendedLogs =>
-                    {
-                        // For example, you could add additional slack channel like this:
-                        extendedLogs.AddAdditionalSlackChannel("SiriusCashoutProcessor", channelOptions =>
-                        {
-                            channelOptions.MinLogLevel = LogLevel.Information;
-                        });
-                    };
-                    */
                 };
-
-                // TODO: Extend the service configuration
-                /*
-                options.Extend = (sc, settings) =>
-                {
-                    sc
-                        .AddOptions()
-                        .AddAuthentication(MyAuthOptions.AuthenticationScheme)
-                        .AddScheme<MyAuthOptions, KeyAuthHandler>(MyAuthOptions.AuthenticationScheme, null);
-                };
-                */
-
-                // TODO: You could add extended Swagger configuration here:
-                /*
-                options.Swagger = swagger =>
-                {
-                    swagger.IgnoreObsoleteActions();
-                };
-                */
             });
         }
 
@@ -68,20 +42,17 @@ namespace Lykke.Job.SiriusCashoutProcessor
             app.UseLykkeConfiguration(options =>
             {
                 options.SwaggerOptions = _swaggerOptions;
-
-                // TODO: Configure additional middleware for eg authentication or maintenancemode checks
-                /*
-                options.WithMiddleware = x =>
-                {
-                    x.UseMaintenanceMode<AppSettings>(settings => new MaintenanceMode
-                    {
-                        Enabled = settings.MaintenanceMode?.Enabled ?? false,
-                        Reason = settings.MaintenanceMode?.Reason
-                    });
-                    x.UseAuthentication();
-                };
-                */
             });
+        }
+
+        [UsedImplicitly]
+        public void ConfigureContainer(ContainerBuilder builder)
+        {
+            var configurationRoot = new ConfigurationBuilder()
+                .AddEnvironmentVariables()
+                .Build();
+
+            builder.ConfigureContainerBuilder(_lykkeOptions, configurationRoot, _settings);
         }
     }
 }
