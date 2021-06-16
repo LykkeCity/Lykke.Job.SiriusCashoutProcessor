@@ -130,7 +130,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                 {
                                     siriusWithdrawalId = item.Withdrawal.Id,
                                     clientId = item.Withdrawal.UserNativeId,
-                                    walletId = item.Withdrawal.AccountReferenceId,
+                                    walletId = item.Withdrawal.AccountReferenceId == item.Withdrawal.UserNativeId ? item.Withdrawal.UserNativeId : item.Withdrawal.AccountReferenceId,
                                     fees = item.Withdrawal.Fee.ToJson(),
                                     item.Withdrawal.State,
                                     TransactionHash = item.Withdrawal.TransactionInfo?.TransactionId
@@ -142,10 +142,8 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                 operationId = Guid.Empty;
                             }
 
-                            var walletId = !string.IsNullOrWhiteSpace(item.Withdrawal.AccountReferenceId)
-                                ? Guid.Parse(item.Withdrawal.AccountReferenceId)
-                                : default(Guid?);
-
+                            Guid? walletId = item.Withdrawal.AccountReferenceId == item.Withdrawal.UserNativeId ? default : Guid.Parse(item.Withdrawal.AccountReferenceId);
+                            
                             switch (item.Withdrawal.State)
                             {
                                 case WithdrawalState.Completed:
@@ -189,7 +187,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                                  await _refundsRepository.AddAsync(
                                                      item.Withdrawal.TransferContext.WithdrawalReferenceId,
                                                      item.Withdrawal.UserNativeId,
-                                                     walletId?.ToString(),
+                                                     walletId?.ToString() ?? item.Withdrawal.UserNativeId,
                                                      operationContext.GlobalSettings.FeeSettings.TargetClients.Cashout,
                                                      asset.Id,
                                                      asset.SiriusAssetId,
