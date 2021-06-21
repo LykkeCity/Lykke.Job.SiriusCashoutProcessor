@@ -12,5 +12,6 @@
         decimal Amount { get; set; }
         decimal FeeAmount { get; set; }
         string State { get; set; }
+        string WalletId { get; }
     }
 }

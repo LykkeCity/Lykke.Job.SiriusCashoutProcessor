@@ -21,11 +21,12 @@ namespace Lykke.Job.SiriusCashoutProcessor.AzureRepositories
         public decimal Amount { get; set; }
         public decimal FeeAmount { get; set; }
         public string State { get; set; }
+        public string WalletId { get; set; }
 
         public static string GetPk(string clientId) => clientId;
         public static string GetRk(string id) => id;
 
-        public static RefundEntity Create(string id, string clientId, string feeClientId, string assetId, long siriusAssetId, decimal amount, decimal feeAmount)
+        public static RefundEntity Create(string id, string clientId, string walletId, string feeClientId, string assetId, long siriusAssetId, decimal amount, decimal feeAmount)
         {
             string operationId = Guid.NewGuid().ToString();
             string feeOperationId = Guid.NewGuid().ToString();
@@ -46,6 +47,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.AzureRepositories
                 SiriusAssetId = siriusAssetId,
                 Amount = amount,
                 FeeAmount = feeAmount,
+                WalletId = walletId,
                 State = "Created"
             };
         }

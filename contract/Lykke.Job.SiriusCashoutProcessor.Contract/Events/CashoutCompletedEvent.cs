@@ -8,6 +8,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Contract.Events
     {
         public Guid OperationId { get; set; }
         public Guid ClientId { get; set; }
+        public Guid? WalletId { set; get; } // populated if API wallet cashout, null if Trading wallet cashout
         public string AssetId { get; set; }
         public decimal Amount { get; set; }
         public string Address { get; set; }
