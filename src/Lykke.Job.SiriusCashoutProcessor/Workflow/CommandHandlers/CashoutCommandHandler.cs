@@ -66,13 +66,18 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
                 Signature = signature
             });
 
-            var techData = result.ResultCase == WithdrawalExecuteResponse.ResultOneofCase.Body
-                ? result.Body.Withdrawal.ToJson()
-                : result.Error.ToJson();
-
-            _log.Info("Cashout sent to sirius", context: $"result: {techData}");
-
-            return CommandHandlingResult.Ok();
+            if (result.ResultCase == WithdrawalExecuteResponse.ResultOneofCase.Error)
+            {
+                _log.Warning("Cashout to Sirius failed", context: $"result: {result.Error.ToJson()}");
+                
+                return CommandHandlingResult.Fail(TimeSpan.FromSeconds(5));
+            }
+            else
+            {
+                _log.Info("Cashout sent to Sirius", context: $"result: {result.Body.Withdrawal.ToJson()}");
+                
+                return CommandHandlingResult.Ok();
+            }
         }
     }
 }
