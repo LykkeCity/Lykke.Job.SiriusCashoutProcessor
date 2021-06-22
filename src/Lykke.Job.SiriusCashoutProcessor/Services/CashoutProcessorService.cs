@@ -112,7 +112,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                             if (string.IsNullOrWhiteSpace(item.Withdrawal.UserNativeId))
                             {
                                 _log.Warning("UserNativeId is empty");
-                                _log.Warning(message: "", context: item.Withdrawal.ToJson());
+                                _log.Warning(message: "Withdrawal update body", context: item.Withdrawal.ToJson());
                                 continue;
                             }
 
