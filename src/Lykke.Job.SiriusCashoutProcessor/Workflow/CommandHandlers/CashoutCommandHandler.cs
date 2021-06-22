@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Common;
@@ -10,6 +11,8 @@ using Lykke.Job.SiriusCashoutProcessor.Contract.Commands;
 using Lykke.Job.SiriusCashoutProcessor.DomainServices;
 using Swisschain.Extensions.Encryption;
 using Swisschain.Sirius.Api.ApiClient;
+using Swisschain.Sirius.Api.ApiContract.Account;
+using Swisschain.Sirius.Api.ApiContract.User;
 using Swisschain.Sirius.Api.ApiContract.Withdrawal;
 
 namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
@@ -41,10 +44,81 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
         {
             _log.Info("Got cashout command", context: $"command: {command.ToJson()}" );
 
+            var clientId = command.ClientId.ToString();
+            var walletId = command.WalletId.HasValue ? command.WalletId.Value.ToString() : clientId;
+            
+             var accountSearchResponse = await _siriusApiClient.Accounts.SearchAsync(new AccountSearchRequest
+            {
+                BrokerAccountId = _brokerAccountId,
+                UserNativeId = clientId,
+                ReferenceId = walletId
+            });
+
+            if (accountSearchResponse.ResultCase == AccountSearchResponse.ResultOneofCase.Error)
+            {
+                var message = "Error fetching Sirius Account";
+                _log.Warning(nameof(CashoutCommandHandler),
+                    message,
+                    context: new
+                    {
+                        error = accountSearchResponse.Error,
+                        walletId,
+                        clientId
+                    });
+                throw new Exception(message);
+            }
+
+            if (!accountSearchResponse.Body.Items.Any())
+            {
+                var accountRequestId = $"{_brokerAccountId}_{walletId}_account";
+                var userRequestId = $"{clientId}_user";
+
+                var userCreateResponse = await _siriusApiClient.Users.CreateAsync(new CreateUserRequest
+                {
+                    RequestId = userRequestId,
+                    NativeId = clientId
+                });
+
+                if (userCreateResponse.BodyCase == CreateUserResponse.BodyOneofCase.Error)
+                {
+                    var message = "Error creating User in Sirius";
+                    _log.Warning(nameof(CashoutCommandHandler),
+                    message,
+                    context: new
+                    {
+                        error = userCreateResponse.Error,
+                        clientId,
+                        requestId = userRequestId
+                    });
+                    throw new Exception(message);
+                }
+
+                var createResponse = await _siriusApiClient.Accounts.CreateAsync(new AccountCreateRequest
+                {
+                    RequestId = accountRequestId,
+                    BrokerAccountId = _brokerAccountId,
+                    UserId = userCreateResponse.User.Id,
+                    ReferenceId = walletId
+                });
+
+                if (createResponse.ResultCase == AccountCreateResponse.ResultOneofCase.Error)
+                {
+                    var message = "Error creating user in Sirius";
+                    _log.Warning(nameof(CashoutCommandHandler),
+                    message,
+                    context: new
+                    {
+                        error = createResponse.Error,
+                        clientId,
+                        requestId = accountRequestId
+                    });
+                    throw new Exception(message);
+                }
+            }
+            
             var document = new WithdrawalDocument
             {
                 BrokerAccountId = _brokerAccountId,
-                UserNativeId = command.ClientId.ToString(),
                 WithdrawalReferenceId = command.OperationId.ToString(),
                 AssetId = command.SiriusAssetId,
                 Amount = command.Amount,
@@ -53,7 +127,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
                     Address = command.Address,
                     Tag = command.Tag ?? string.Empty
                 },
-                AccountReferenceId = command.WalletId?.ToString() ?? command.ClientId.ToString()
+                AccountReferenceId = walletId
             }.ToJson();
 
             var signatureBytes = _encryptionService.GenerateSignature(Encoding.UTF8.GetBytes(document),  _privateKeyService.GetPrivateKey());
