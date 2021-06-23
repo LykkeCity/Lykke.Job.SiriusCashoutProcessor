@@ -166,7 +166,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                     break;
                                 case WithdrawalState.Failed:
                                 case WithdrawalState.Rejected:
-                                case WithdrawalState.AmlFailed:
+                                case WithdrawalState.Refunded:
                                 //case WithdrawalState.ref: TODO: Refunded state?
                                 {
                                     await _withdrawalLogsRepository.AddAsync(
