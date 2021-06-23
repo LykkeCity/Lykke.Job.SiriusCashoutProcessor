@@ -144,7 +144,12 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
             {
                 _log.Error("Cashout to Sirius failed", context: $"result: {result.Error.ToJson()}");
                 
-                return CommandHandlingResult.Fail(TimeSpan.FromSeconds(10));
+                if(result.Error.ErrorCode == WithdrawalExecuteErrorResponseBody.Types.ErrorCode.InvalidParameters ||
+                   result.Error.ErrorCode == WithdrawalExecuteErrorResponseBody.Types.ErrorCode.InvalidAddress)
+                    return CommandHandlingResult.Ok();
+                else
+                    return CommandHandlingResult.Fail(TimeSpan.FromSeconds(10));
+                    
             }
             else
             {
