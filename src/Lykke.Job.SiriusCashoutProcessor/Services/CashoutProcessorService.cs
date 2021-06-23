@@ -165,6 +165,13 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                     _lastCursor = item.WithdrawalUpdateId;
                                     break;
                                 case WithdrawalState.Failed:
+                                    await _withdrawalLogsRepository.AddAsync(
+                                        item.Withdrawal.TransferContext.WithdrawalReferenceId,
+                                        "Withdrawal failed, finishing without Refund",
+                                        null);
+                                    await _lastCursorRepository.AddAsync(_brokerAccountId, item.WithdrawalUpdateId);
+                                    _lastCursor = item.WithdrawalUpdateId;
+                                    break;
                                 case WithdrawalState.Rejected:
                                 case WithdrawalState.Refunded:
                                 {
