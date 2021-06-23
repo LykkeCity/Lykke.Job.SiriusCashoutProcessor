@@ -142,9 +142,9 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
 
             if (result.ResultCase == WithdrawalExecuteResponse.ResultOneofCase.Error)
             {
-                _log.Warning("Cashout to Sirius failed", context: $"result: {result.Error.ToJson()}");
+                _log.Error("Cashout to Sirius failed", context: $"result: {result.Error.ToJson()}");
                 
-                return CommandHandlingResult.Fail(TimeSpan.FromSeconds(5));
+                return CommandHandlingResult.Fail(TimeSpan.FromSeconds(10));
             }
             else
             {
