@@ -43,7 +43,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
         public async Task<CommandHandlingResult> Handle(StartCashoutCommand command, IEventPublisher eventPublisher)
         {
             _log.Info("Got cashout command", context: $"command: {command.ToJson()}" );
-
+            
             var clientId = command.ClientId.ToString();
             var walletId = command.WalletId.HasValue ? command.WalletId.Value.ToString() : clientId;
             
@@ -116,6 +116,15 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
                 }
             }
             
+            var tag = !string.IsNullOrWhiteSpace(command.Tag) ? command.Tag : string.Empty;
+            
+            WithdrawalDocument.WithdrawalDestinationTagType? tagType =
+                !string.IsNullOrWhiteSpace(command.Tag)
+                    ? (long.TryParse(command.Tag, out _)
+                        ? WithdrawalDocument.WithdrawalDestinationTagType.Number
+                        : WithdrawalDocument.WithdrawalDestinationTagType.Text)
+                    : null;
+            
             var document = new WithdrawalDocument
             {
                 BrokerAccountId = _brokerAccountId,
@@ -125,7 +134,8 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
                 DestinationDetails = new WithdrawalDocument.WithdrawalDestinationDetails
                 {
                     Address = command.Address,
-                    Tag = command.Tag ?? string.Empty
+                    Tag = tag,
+                    TagType = tagType
                 },
                 AccountReferenceId = walletId
             }.ToJson();
