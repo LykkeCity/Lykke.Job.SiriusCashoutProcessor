@@ -118,12 +118,12 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
             
             var tag = !string.IsNullOrWhiteSpace(command.Tag) ? command.Tag : string.Empty;
             
-            var tagType =
+            WithdrawalDocument.WithdrawalDestinationTagType? tagType =
                 !string.IsNullOrWhiteSpace(command.Tag)
-                    ? (int.TryParse(command.Tag, out _)
+                    ? (long.TryParse(command.Tag, out _)
                         ? WithdrawalDocument.WithdrawalDestinationTagType.Number
                         : WithdrawalDocument.WithdrawalDestinationTagType.Text)
-                    : default;
+                    : null;
             
             var document = new WithdrawalDocument
             {
