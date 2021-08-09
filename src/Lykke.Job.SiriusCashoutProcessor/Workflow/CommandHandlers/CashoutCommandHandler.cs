@@ -42,12 +42,26 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
         [UsedImplicitly]
         public async Task<CommandHandlingResult> Handle(StartCashoutCommand command, IEventPublisher eventPublisher)
         {
-            _log.Info("Got cashout command", context: $"command: {command.ToJson()}" );
-            
+            var operationId = command.OperationId.ToString();
+
+            _log.Info("Got cashout command", context: new { operationId, command = command.ToJson() });
+
             var clientId = command.ClientId.ToString();
-            var walletId = command.WalletId.HasValue ? command.WalletId.Value.ToString() : clientId;
-            
-             var accountSearchResponse = await _siriusApiClient.Accounts.SearchAsync(new AccountSearchRequest
+
+            string walletId;
+
+            if (command.WalletId.HasValue)
+            {
+                walletId = command.WalletId.Value == Guid.Empty
+                    ? clientId
+                    : command.WalletId.Value.ToString();
+            }
+            else
+            {
+                walletId = clientId;
+            }
+
+            var accountSearchResponse = await _siriusApiClient.Accounts.SearchAsync(new AccountSearchRequest
             {
                 BrokerAccountId = _brokerAccountId,
                 UserNativeId = clientId,
@@ -63,7 +77,8 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
                     {
                         error = accountSearchResponse.Error,
                         walletId,
-                        clientId
+                        clientId,
+                        operationId
                     });
                 throw new Exception(message);
             }
@@ -88,7 +103,8 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
                     {
                         error = userCreateResponse.Error,
                         clientId,
-                        requestId = userRequestId
+                        requestId = userRequestId,
+                        operationId
                     });
                     throw new Exception(message);
                 }
@@ -110,21 +126,22 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
                     {
                         error = createResponse.Error,
                         clientId,
-                        requestId = accountRequestId
+                        requestId = accountRequestId,
+                        operationId
                     });
                     throw new Exception(message);
                 }
             }
-            
+
             var tag = !string.IsNullOrWhiteSpace(command.Tag) ? command.Tag : string.Empty;
-            
+
             WithdrawalDocument.WithdrawalDestinationTagType? tagType =
                 !string.IsNullOrWhiteSpace(command.Tag)
                     ? (long.TryParse(command.Tag, out _)
                         ? WithdrawalDocument.WithdrawalDestinationTagType.Number
                         : WithdrawalDocument.WithdrawalDestinationTagType.Text)
                     : null;
-            
+
             var document = new WithdrawalDocument
             {
                 BrokerAccountId = _brokerAccountId,
@@ -152,21 +169,19 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
 
             if (result.ResultCase == WithdrawalExecuteResponse.ResultOneofCase.Error)
             {
-                _log.Error(message: "Cashout to Sirius failed", context: $"result: {result.Error.ToJson()}");
-                
+                _log.Error(message: "Cashout to Sirius failed", context: new { operationId, error = result.Error.ToJson() });
+
                 if(result.Error.ErrorCode == WithdrawalExecuteErrorResponseBody.Types.ErrorCode.InvalidParameters ||
                    result.Error.ErrorCode == WithdrawalExecuteErrorResponseBody.Types.ErrorCode.InvalidAddress)
                     return CommandHandlingResult.Ok();
-                else
-                    return CommandHandlingResult.Fail(TimeSpan.FromSeconds(10));
-                    
+
+                return CommandHandlingResult.Fail(TimeSpan.FromSeconds(10));
+
             }
-            else
-            {
-                _log.Info("Cashout sent to Sirius", context: $"result: {result.Body.Withdrawal.ToJson()}");
-                
-                return CommandHandlingResult.Ok();
-            }
+
+            _log.Info("Cashout sent to Sirius", context: new { operationId, withdrawal = result.Body.Withdrawal.ToJson()});
+
+            return CommandHandlingResult.Ok();
         }
     }
 }
