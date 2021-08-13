@@ -143,8 +143,8 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                 operationId = Guid.Empty;
                             }
 
-                            Guid? walletId = item.Withdrawal.AccountReferenceId == item.Withdrawal.UserNativeId ? default : Guid.Parse(item.Withdrawal.AccountReferenceId);
-                            
+                            Guid? walletId = item.Withdrawal.AccountReferenceId == item.Withdrawal.UserNativeId ? null : Guid.Parse(item.Withdrawal.AccountReferenceId);
+
                             switch (item.Withdrawal.State)
                             {
                                 case WithdrawalState.Completed:
