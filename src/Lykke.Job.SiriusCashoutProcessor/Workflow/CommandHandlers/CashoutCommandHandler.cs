@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Common;
 using Common.Log;
+using Google.Protobuf.WellKnownTypes;
 using JetBrains.Annotations;
 using Lykke.Common.Log;
 using Lykke.Cqrs;
@@ -13,6 +14,7 @@ using Swisschain.Extensions.Encryption;
 using Swisschain.Sirius.Api.ApiClient;
 using Swisschain.Sirius.Api.ApiContract.Account;
 using Swisschain.Sirius.Api.ApiContract.User;
+using Swisschain.Sirius.Api.ApiContract.WhitelistItems;
 using Swisschain.Sirius.Api.ApiContract.Withdrawal;
 
 namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
@@ -47,6 +49,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
             _log.Info("Got cashout command", context: new { operationId, command = command.ToJson() });
 
             var clientId = command.ClientId.ToString();
+            long? accountId = null;
 
             string walletId;
 
@@ -131,6 +134,52 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
                     });
                     throw new Exception(message);
                 }
+
+                accountId = createResponse.Body.Account.Id;
+            }
+            else
+            {
+                accountId = accountSearchResponse.Body.Items.FirstOrDefault()?.Id;
+            }
+
+            var whitelistingRequestId = $"lykke:trading_wallet:{clientId}";
+
+            var whitelistItemCreateResponse = await _siriusApiClient.WhitelistItems.CreateAsync(new WhitelistItemCreateRequest
+            {
+                Name = "Trading Wallet Whitelist",
+                Scope = new WhitelistItemScope
+                {
+                    BrokerAccountId = _brokerAccountId,
+                    AccountId = accountId,
+                    UserNativeId = clientId
+                },
+                Details = new WhitelistItemDetails
+                {
+                    TransactionType = WhitelistTransactionType.Any,
+                    TagType = new  NullableWhitelistItemTagType
+                    {
+                        Null = NullValue.NullValue
+                    }
+                },
+                Lifespan = new WhitelistItemLifespan
+                {
+                    StartsAt = Timestamp.FromDateTime(DateTime.UtcNow)
+                },
+                RequestId = whitelistingRequestId
+            });
+
+            if (whitelistItemCreateResponse.BodyCase == WhitelistItemCreateResponse.BodyOneofCase.Error)
+            {
+                _log.Warning(nameof(CashoutCommandHandler), "Error creating Whitelist item",
+                    context: new
+                    {
+                        error = whitelistItemCreateResponse.Error,
+                        clientId,
+                        requestId = whitelistingRequestId,
+                        operationId
+                    });
+
+                throw new Exception("Error creating Whitelist item");
             }
 
             var tag = !string.IsNullOrWhiteSpace(command.Tag) ? command.Tag : string.Empty;
