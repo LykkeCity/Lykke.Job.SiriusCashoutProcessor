@@ -22,6 +22,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
     public class CashoutCommandHandler
     {
         private readonly long _brokerAccountId;
+        private readonly int _notEnoughBalanceRetryDelayInSeconds;
         private readonly IApiClient _siriusApiClient;
         private readonly PrivateKeyService _privateKeyService;
         private readonly ILog _log;
@@ -31,12 +32,13 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
             long brokerAccountId,
             IApiClient siriusApiClient,
             PrivateKeyService privateKeyService,
-            ILogFactory logFactory
-            )
+            ILogFactory logFactory,
+            int notEnoughBalanceRetryDelayInSeconds)
         {
             _brokerAccountId = brokerAccountId;
             _siriusApiClient = siriusApiClient;
             _privateKeyService = privateKeyService;
+            _notEnoughBalanceRetryDelayInSeconds = notEnoughBalanceRetryDelayInSeconds;
             _log = logFactory.CreateLog(this);
             _encryptionService = new AsymmetricEncryptionService();
         }
@@ -216,21 +218,41 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
                 Signature = signature
             });
 
+            
             if (result.ResultCase == WithdrawalExecuteResponse.ResultOneofCase.Error)
             {
-                _log.Error(message: "Cashout to Sirius failed", context: new { operationId, error = result.Error.ToJson() });
-
-                if(result.Error.ErrorCode == WithdrawalExecuteErrorResponseBody.Types.ErrorCode.InvalidParameters ||
-                   result.Error.ErrorCode == WithdrawalExecuteErrorResponseBody.Types.ErrorCode.InvalidAddress)
-                    return CommandHandlingResult.Ok();
-
-                return CommandHandlingResult.Fail(TimeSpan.FromSeconds(10));
-
+                switch (result.Error.ErrorCode)
+                {
+                    case WithdrawalExecuteErrorResponseBody.Types.ErrorCode.IsNotAuthorized:
+                    case WithdrawalExecuteErrorResponseBody.Types.ErrorCode.Unknown:
+                        LogError(operationId, result.Error);
+                        return CommandHandlingResult.Fail(TimeSpan.FromSeconds(10));
+                    case WithdrawalExecuteErrorResponseBody.Types.ErrorCode.InvalidParameters:
+                    case WithdrawalExecuteErrorResponseBody.Types.ErrorCode.NotFound:
+                        LogError(operationId, result.Error);
+                        throw new Exception($"{result.Error.ErrorCode}: " + result.Error.ErrorMessage);
+                    case WithdrawalExecuteErrorResponseBody.Types.ErrorCode.NotEnoughBalance:
+                        LogWarning(operationId, result.Error);
+                        return CommandHandlingResult.Fail(TimeSpan.FromSeconds(_notEnoughBalanceRetryDelayInSeconds));
+                    case WithdrawalExecuteErrorResponseBody.Types.ErrorCode.InvalidAddress:
+                    case WithdrawalExecuteErrorResponseBody.Types.ErrorCode.AmountIsTooLow:
+                        LogWarning(operationId, result.Error);
+                        throw new Exception($"{result.Error.ErrorCode}: " + result.Error.ErrorMessage);
+                }
             }
 
             _log.Info("Cashout sent to Sirius", context: new { operationId, withdrawal = result.Body.Withdrawal.ToJson()});
 
             return CommandHandlingResult.Ok();
+        }
+
+        private void LogWarning(string operationId, WithdrawalExecuteErrorResponseBody error)
+        {
+            _log.Warning(message: "Cashout to Sirius failed", context: new { operationId, error = error.ToJson() });
+        }
+        private void LogError(string operationId, WithdrawalExecuteErrorResponseBody error)
+        {
+            _log.Error(message: "Cashout to Sirius failed", context: new { operationId, error = error.ToJson() });
         }
     }
 }
