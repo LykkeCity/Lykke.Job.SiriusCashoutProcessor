@@ -1,6 +1,7 @@
-namespace Lykke.Job.SiriusCashoutProcessor.Settings.JobSettings;
-
-public class RetrySettings
+namespace Lykke.Job.SiriusCashoutProcessor.Settings.JobSettings
 {
-    public int NotEnoughBalanceRetryDelayInSeconds { get; set; }
+    public class RetrySettings
+    {
+        public int NotEnoughBalanceRetryDelayInSeconds { get; set; }
+    }
 }
