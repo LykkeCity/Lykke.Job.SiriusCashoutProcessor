@@ -19,6 +19,9 @@ SiriusCashoutProcessorJob:
       settings-key: SiriusCashoutProcessorJob-KeyVault-ClientSecret
     PrivateKeyName:
       settings-key: SiriusCashoutProcessorJob-KeyVault-PrivateKeyName
+  RetrySettings:
+    NotEnoughBalanceRetryDelayInSeconds:
+      settings-key: SiriusCashoutProcessorJob-NotEnoughBalanceRetryDelayInSeconds
 SlackNotifications:
     AzureQueue:
         ConnectionString:

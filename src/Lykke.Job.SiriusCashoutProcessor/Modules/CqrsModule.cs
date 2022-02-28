@@ -37,6 +37,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Modules
             builder.Register(context => new AutofacDependencyResolver(context)).As<IDependencyResolver>();
             builder.RegisterType<CashoutCommandHandler>()
                 .WithParameter(TypedParameter.From(_settings.CurrentValue.SiriusApiServiceClient.BrokerAccountId))
+                .WithParameter(TypedParameter.From(_settings.CurrentValue.SiriusCashoutProcessorJob.RetrySettings.NotEnoughBalanceRetryDelayInSeconds))
                 .SingleInstance();
 
             builder.Register(ctx => new MessagingEngine(ctx.Resolve<ILogFactory>(),
