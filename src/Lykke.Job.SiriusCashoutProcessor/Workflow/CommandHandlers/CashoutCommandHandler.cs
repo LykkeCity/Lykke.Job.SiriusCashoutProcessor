@@ -230,14 +230,14 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
                     case WithdrawalExecuteErrorResponseBody.Types.ErrorCode.InvalidParameters:
                     case WithdrawalExecuteErrorResponseBody.Types.ErrorCode.NotFound:
                         LogError(operationId, result.Error);
-                        throw new Exception($"{result.Error.ErrorCode}: " + result.Error.ErrorMessage);
+                        return CommandHandlingResult.Ok(); // abort
                     case WithdrawalExecuteErrorResponseBody.Types.ErrorCode.NotEnoughBalance:
                         LogWarning(operationId, result.Error);
                         return CommandHandlingResult.Fail(TimeSpan.FromSeconds(_notEnoughBalanceRetryDelayInSeconds));
                     case WithdrawalExecuteErrorResponseBody.Types.ErrorCode.InvalidAddress:
                     case WithdrawalExecuteErrorResponseBody.Types.ErrorCode.AmountIsTooLow:
                         LogWarning(operationId, result.Error);
-                        throw new Exception($"{result.Error.ErrorCode}: " + result.Error.ErrorMessage);
+                        return CommandHandlingResult.Ok(); // abort
                 }
             }
 
