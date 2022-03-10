@@ -111,8 +111,19 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
 
                             if (string.IsNullOrWhiteSpace(item.Withdrawal.UserNativeId))
                             {
-                                _log.Warning("UserNativeId is empty");
-                                _log.Warning(message: "Withdrawal update body", context: item.Withdrawal.ToJson());
+                                _log.Warning("UserNativeId is empty", context: new
+                                {
+                                    StreamId = request.StreamId,
+                                    BrokerAccountId = request.BrokerAccountId,
+                                    Cursor = request.Cursor,
+                                });
+                                _log.Warning(message: "Withdrawal update body", context: new
+                                    {
+                                       Item = item.Withdrawal.ToJson(),
+                                       StreamId = request.StreamId,
+                                       BrokerAccountId = request.BrokerAccountId,
+                                       Cursor = request.Cursor,
+                                    });
                                 continue;
                             }
 
@@ -132,7 +143,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                     siriusWithdrawalId = item.Withdrawal.Id,
                                     clientId = item.Withdrawal.UserNativeId,
                                     walletId = item.Withdrawal.AccountReferenceId == item.Withdrawal.UserNativeId ? item.Withdrawal.UserNativeId : item.Withdrawal.AccountReferenceId,
-                                    fees = item.Withdrawal.Fee.ToJson(),
+                                    fees = item.Withdrawal.ActualFees.ToJson(),
                                     item.Withdrawal.State,
                                     TransactionHash = item.Withdrawal.TransactionInfo?.TransactionId
                                 }.ToJson()
