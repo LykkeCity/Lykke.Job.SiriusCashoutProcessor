@@ -13,6 +13,7 @@ using Lykke.Job.SiriusCashoutProcessor.DomainServices;
 using Swisschain.Extensions.Encryption;
 using Swisschain.Sirius.Api.ApiClient;
 using Swisschain.Sirius.Api.ApiContract.Account;
+using Swisschain.Sirius.Api.ApiContract.Documents.Withdrawals;
 using Swisschain.Sirius.Api.ApiContract.User;
 using Swisschain.Sirius.Api.ApiContract.WhitelistItems;
 using Swisschain.Sirius.Api.ApiContract.Withdrawal;
@@ -186,11 +187,11 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
 
             var tag = !string.IsNullOrWhiteSpace(command.Tag) ? command.Tag : string.Empty;
 
-            WithdrawalDocument.WithdrawalDestinationTagType? tagType =
+            WithdrawalDestinationTagType? tagType =
                 !string.IsNullOrWhiteSpace(command.Tag)
                     ? (long.TryParse(command.Tag, out _)
-                        ? WithdrawalDocument.WithdrawalDestinationTagType.Number
-                        : WithdrawalDocument.WithdrawalDestinationTagType.Text)
+                        ? WithdrawalDestinationTagType.Number
+                        : WithdrawalDestinationTagType.Text)
                     : null;
 
             var document = new WithdrawalDocument
@@ -199,7 +200,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
                 WithdrawalReferenceId = command.OperationId.ToString(),
                 AssetId = command.SiriusAssetId,
                 Amount = command.Amount,
-                DestinationDetails = new WithdrawalDocument.WithdrawalDestinationDetails
+                DestinationDetails = new WithdrawalDestinationDetails
                 {
                     Address = command.Address,
                     Tag = tag,

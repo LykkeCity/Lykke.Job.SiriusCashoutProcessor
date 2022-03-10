@@ -88,15 +88,22 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                 _lastCursor = await _lastCursorRepository.GetAsync(_brokerAccountId);
                 var assets = await _assetsService.GetAllAssetsAsync(false, _cancellationTokenSource.Token);
 
+                var streamId = Guid.NewGuid().ToString();
                 try
                 {
                     var request = new WithdrawalUpdateSearchRequest
                     {
+                        StreamId = streamId,
                         BrokerAccountId = _brokerAccountId,
                         Cursor = _lastCursor
                     };
 
-                    _log.Info("Getting updates...", context: $"request: {request.ToJson()}");
+                    _log.Info("Getting updates...", context: new
+                    {
+                        StreamId = request.StreamId,
+                        BrokerAccountId = request.BrokerAccountId,
+                        Cursor = request.Cursor,
+                    });
 
                     var updates = _apiClient.Withdrawals.GetUpdates(request);
 
@@ -111,17 +118,44 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
 
                             if (string.IsNullOrWhiteSpace(item.Withdrawal.UserNativeId))
                             {
-                                _log.Warning("UserNativeId is empty");
+                                _log.Warning("UserNativeId is empty", context: new
+                                {
+                                    StreamId = request.StreamId,
+                                    BrokerAccountId = request.BrokerAccountId,
+                                    Cursor = request.Cursor,
+                                });
+                                _log.Warning(message: "Withdrawal update body", context: new
+                                    {
+                                       Item = item.Withdrawal.ToJson(),
+                                       StreamId = request.StreamId,
+                                       BrokerAccountId = request.BrokerAccountId,
+                                       Cursor = request.Cursor,
+                                    });
                                 continue;
                             }
 
-                            _log.Info("Withdrawal update", context: $"withdrawal: {item.ToJson()}");
+                            _log.Info("Withdrawal update", context: new
+                            {
+                                Withdrawal = item.ToJson(),
+                                StreamId = request.StreamId,
+                                BrokerAccountId = request.BrokerAccountId,
+                                Cursor = request.Cursor,
+                            });
 
                             Asset asset = assets.FirstOrDefault(x => x.SiriusAssetId == item.Withdrawal.AssetId);
 
                             if (asset == null)
                             {
-                                _log.Warning("Lykke asset not found", context: new {siriusAssetId = item.Withdrawal.AssetId, withdrawalId = item.Withdrawal.Id});
+                                _log.Warning(
+                                    "Lykke asset not found", 
+                                    context: new
+                                    {
+                                        siriusAssetId = item.Withdrawal.AssetId,
+                                        withdrawalId = item.Withdrawal.Id,
+                                        StreamId = request.StreamId,
+                                        BrokerAccountId = request.BrokerAccountId,
+                                        Cursor = request.Cursor,
+                                    });
                                 continue;
                             }
 
@@ -131,7 +165,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                     siriusWithdrawalId = item.Withdrawal.Id,
                                     clientId = item.Withdrawal.UserNativeId,
                                     walletId = item.Withdrawal.AccountReferenceId == item.Withdrawal.UserNativeId ? item.Withdrawal.UserNativeId : item.Withdrawal.AccountReferenceId,
-                                    fees = item.Withdrawal.Fee.ToJson(),
+                                    fees = item.Withdrawal.ActualFees.ToJson(),
                                     item.Withdrawal.State,
                                     TransactionHash = item.Withdrawal.TransactionInfo?.TransactionId
                                 }.ToJson()
@@ -206,14 +240,26 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
 
                                         if (feeReturnResult != null && (feeReturnResult.Status == MeStatusCodes.Ok || feeReturnResult.Status == MeStatusCodes.Duplicate))
                                         {
-                                            _log.Info("Fee cashed out from fee wallet", context: $"operationId = {refund.FeeOperationId}");
+                                            _log.Info("Fee cashed out from fee wallet", new
+                                            {
+                                                OperationId = refund.FeeOperationId,
+                                                StreamId = request.StreamId,
+                                                BrokerAccountId = request.BrokerAccountId,
+                                                Cursor = request.Cursor,
+                                            });
 
                                             await _withdrawalLogsRepository.AddAsync(refund.Id, "Fee cashed out from fee wallet",
                                                 new {refund.FeeOperationId, refund.FeeClientId, refund.FeeAmount, refund.AssetId}.ToJson());
                                         }
                                         else
                                         {
-                                            _log.Info("Can't cashout fee from fee wallet", context: $"operationId = {refund.FeeOperationId}");
+                                            _log.Info("Can't cashout fee from fee wallet", context: new
+                                            {
+                                                OperationId = refund.FeeOperationId,
+                                                StreamId = request.StreamId,
+                                                BrokerAccountId = request.BrokerAccountId,
+                                                Cursor = request.Cursor,
+                                            });
 
                                             await _withdrawalLogsRepository.AddAsync(refund.Id, "Can't cashout fee from fee wallet",
                                                 new {refund.FeeOperationId, refund.FeeClientId, refund.FeeAmount, refund.AssetId,
@@ -227,7 +273,13 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
 
                                     if (result != null && (result.Status == MeStatusCodes.Ok || result.Status == MeStatusCodes.Duplicate))
                                     {
-                                        _log.Info("Refund processed", context: $"operationId = {refund.OperationId}");
+                                        _log.Info("Refund processed", context: new
+                                        {
+                                            OperationId = refund.OperationId,
+                                            StreamId = request.StreamId,
+                                            BrokerAccountId = request.BrokerAccountId,
+                                            Cursor = request.Cursor,
+                                        });
 
                                         await _refundsRepository.UpdateAsync(refund.ClientId, refund.Id, WithdrawalState.Completed.ToString());
 
@@ -245,7 +297,13 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                     }
                                     else
                                     {
-                                        _log.Info("Refund failed", context: $"operationId = {refund.OperationId}");
+                                        _log.Info("Refund failed", context: new
+                                        {
+                                            OperationId = refund.OperationId,
+                                            StreamId = request.StreamId,
+                                            BrokerAccountId = request.BrokerAccountId,
+                                            Cursor = request.Cursor,
+                                        });
 
                                         await _refundsRepository.UpdateAsync(refund.ClientId, refund.Id, WithdrawalState.Failed.ToString());
 
@@ -278,18 +336,24 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                         }
                     }
 
-                    _log.Info("End of stream");
+                    _log.Info("End of stream", context: new { request.StreamId });
                 }
                 catch (RpcException ex)
                 {
                     if (ex.StatusCode == StatusCode.ResourceExhausted)
                     {
-                        _log.Warning($"Rate limit has been reached. Waiting 1 minute...", ex);
+                        _log.Warning($"Rate limit has been reached. Waiting 1 minute...", ex, context: new
+                        {
+                            StreamId = streamId
+                        });
                         await Task.Delay(60000);
                     }
                     else
                     {
-                        _log.Warning($"RpcException. {ex.Status}; {ex.StatusCode}", ex);
+                        _log.Warning($"RpcException. {ex.Status}; {ex.StatusCode}", ex, context: new
+                        {
+                            StreamId = streamId
+                        });
                     }
                 }
                 catch (Exception ex)
