@@ -111,6 +111,16 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                     {
                         WithdrawalUpdateArrayResponse update = updates.ResponseStream.Current;
 
+                        if (!update.Items.Any())
+                        {
+                            _log.Warning("Empty collection of update items:", context: new
+                            {
+                                StreamId = request.StreamId,
+                                BrokerAccountId = request.BrokerAccountId,
+                                Cursor = request.Cursor,
+                            });
+                        }
+                        
                         foreach (var item in update.Items)
                         {
                             if (item.WithdrawalUpdateId <= _lastCursor)
