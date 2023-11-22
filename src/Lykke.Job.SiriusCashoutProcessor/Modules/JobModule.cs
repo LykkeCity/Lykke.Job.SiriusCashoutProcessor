@@ -31,6 +31,10 @@ namespace Lykke.Job.SiriusCashoutProcessor.Modules
 
         protected override void Load(ContainerBuilder builder)
         {
+            builder.RegisterType<BlockedCashoutsManager>()
+                .AsSelf()
+                .SingleInstance();
+
             builder.RegisterType<HealthService>()
                 .As<IHealthService>()
                 .SingleInstance();

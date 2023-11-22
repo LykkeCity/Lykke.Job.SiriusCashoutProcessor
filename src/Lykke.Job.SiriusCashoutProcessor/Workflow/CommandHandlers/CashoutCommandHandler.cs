@@ -10,6 +10,7 @@ using Lykke.Common.Log;
 using Lykke.Cqrs;
 using Lykke.Job.SiriusCashoutProcessor.Contract.Commands;
 using Lykke.Job.SiriusCashoutProcessor.DomainServices;
+using Lykke.Job.SiriusCashoutProcessor.Services;
 using Swisschain.Extensions.Encryption;
 using Swisschain.Sirius.Api.ApiClient;
 using Swisschain.Sirius.Api.ApiContract.Account;
@@ -22,6 +23,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
 {
     public class CashoutCommandHandler
     {
+        private readonly BlockedCashoutsManager _blockedWithdrawalsManager;
         private readonly long _brokerAccountId;
         private readonly int _notEnoughBalanceRetryDelayInSeconds;
         private readonly IApiClient _siriusApiClient;
@@ -30,12 +32,14 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
         private readonly AsymmetricEncryptionService _encryptionService;
 
         public CashoutCommandHandler(
+            BlockedCashoutsManager blockedWithdrawalsManager,
             long brokerAccountId,
             IApiClient siriusApiClient,
             PrivateKeyService privateKeyService,
             ILogFactory logFactory,
             int notEnoughBalanceRetryDelayInSeconds)
         {
+            _blockedWithdrawalsManager = blockedWithdrawalsManager;
             _brokerAccountId = brokerAccountId;
             _siriusApiClient = siriusApiClient;
             _privateKeyService = privateKeyService;
@@ -50,6 +54,12 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
             var operationId = command.OperationId.ToString();
 
             _log.Info("Got cashout command", context: new { operationId, command = command.ToJson() });
+
+            if (_blockedWithdrawalsManager.IsBlocked(command.OperationId))
+            {
+                _log.Warning("Cashout is blocked it will be skipped", context: new { operationId, command = command.ToJson() });
+                return CommandHandlingResult.Ok();
+            }
 
             var clientId = command.ClientId.ToString();
             long? accountId = null;
