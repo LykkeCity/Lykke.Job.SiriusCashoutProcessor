@@ -48,7 +48,4 @@
     <ProjectReference Include="..\Lykke.Job.SiriusCashoutProcessor.Domain\Lykke.Job.SiriusCashoutProcessor.Domain.csproj" />
     <ProjectReference Include="..\Lykke.Job.SiriusCashoutProcessor.DomainServices\Lykke.Job.SiriusCashoutProcessor.DomainServices.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Controllers" />
-  </ItemGroup>
 </Project>
