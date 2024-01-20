@@ -2,6 +2,7 @@
 using Antares.Sdk.Health;
 using Antares.Sdk.Services;
 using Autofac;
+using Autofac.Extensions.DependencyInjection;
 using AzureStorage.Tables;
 using Common;
 using JetBrains.Annotations;
@@ -15,7 +16,9 @@ using Lykke.Service.Assets.Client;
 using Lykke.Service.Operations.Client;
 using Lykke.SettingsReader;
 using Microsoft.Azure.KeyVault;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
+using Swisschain.Sirius.Api.ApiClient;
 
 namespace Lykke.Job.SiriusCashoutProcessor.Modules
 {
@@ -31,6 +34,16 @@ namespace Lykke.Job.SiriusCashoutProcessor.Modules
 
         protected override void Load(ContainerBuilder builder)
         {
+            var sc = new ServiceCollection();
+                
+            sc.AddSiriusApiClient(new SiriusApiOptions
+            {
+                ServerGrpcUrl = new Uri(_settings.CurrentValue.SiriusApiServiceClient.GrpcServiceUrl),
+                ApiKey = _settings.CurrentValue.SiriusApiServiceClient.ApiKey
+            });
+            
+            builder.Populate(sc);
+            
             builder.RegisterType<BlockedCashoutsManager>()
                 .AsSelf()
                 .SingleInstance();
@@ -54,10 +67,6 @@ namespace Lykke.Job.SiriusCashoutProcessor.Modules
                 .As<IStopable>()
                 .AutoActivate()
                 .SingleInstance();
-
-            builder.RegisterInstance(
-                new Swisschain.Sirius.Api.ApiClient.ApiClient(_settings.CurrentValue.SiriusApiServiceClient.GrpcServiceUrl, _settings.CurrentValue.SiriusApiServiceClient.ApiKey)
-            ).As<Swisschain.Sirius.Api.ApiClient.IApiClient>();
 
             builder.Register(ctx =>
                 new LastCursorRepository(AzureTableStorage<CursorEntity>.Create(
