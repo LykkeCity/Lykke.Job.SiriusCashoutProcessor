@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Common;
 using Common.Log;
+using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using JetBrains.Annotations;
 using Lykke.Common.Log;
@@ -13,11 +14,13 @@ using Lykke.Job.SiriusCashoutProcessor.DomainServices;
 using Lykke.Job.SiriusCashoutProcessor.Services;
 using Swisschain.Extensions.Encryption;
 using Swisschain.Sirius.Api.ApiClient;
+using Swisschain.Sirius.Api.ApiClient.Utils.Builders.V2;
 using Swisschain.Sirius.Api.ApiContract.Account;
-using Swisschain.Sirius.Api.ApiContract.Documents.Withdrawals;
+using Swisschain.Sirius.Api.ApiContract.Common;
 using Swisschain.Sirius.Api.ApiContract.User;
 using Swisschain.Sirius.Api.ApiContract.WhitelistItems;
-using Swisschain.Sirius.Api.ApiContract.Withdrawal;
+using Swisschain.Sirius.Api.ApiContract.V2.Withdrawals;
+using WithdrawalDocument = Swisschain.Sirius.Api.ApiContract.V2.Withdrawals.WithdrawalDocument;
 
 namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
 {
@@ -76,6 +79,8 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
             {
                 walletId = clientId;
             }
+
+            var walletType = !string.IsNullOrWhiteSpace(walletId) ? "API" : "Trading";
 
             var accountSearchResponse = await _siriusApiClient.Accounts.SearchAsync(new AccountSearchRequest
             {
@@ -196,72 +201,81 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
             }
 
             var tag = !string.IsNullOrWhiteSpace(command.Tag) ? command.Tag : string.Empty;
-
-            WithdrawalDestinationTagType? tagType =
-                !string.IsNullOrWhiteSpace(command.Tag)
-                    ? (long.TryParse(command.Tag, out _)
-                        ? WithdrawalDestinationTagType.Number
-                        : WithdrawalDestinationTagType.Text)
-                    : null;
-
-            var document = new WithdrawalDocument
+            var destinationTag = !string.IsNullOrWhiteSpace(command.Tag) ? 
+                new DestinationTag 
+                {
+                    Type = long.TryParse(command.Tag, out _) ? TagType.Number : TagType.Text,
+                    Value = tag
+                }
+                : null;
+            
+            var withdrawalDocument = new WithdrawalDocument
             {
                 BrokerAccountId = _brokerAccountId,
-                WithdrawalReferenceId = command.OperationId.ToString(),
                 AssetId = command.SiriusAssetId,
                 Amount = command.Amount,
-                DestinationDetails = new WithdrawalDestinationDetails
+                DestinationDetails = new ()
                 {
                     Address = command.Address,
-                    Tag = tag,
-                    TagType = tagType
+                    DestinationTag = destinationTag,
                 },
-                AccountReferenceId = walletId
-            }.ToJson();
-
-            var signatureBytes = _encryptionService.GenerateSignature(Encoding.UTF8.GetBytes(document),  _privateKeyService.GetPrivateKey());
-            var signature = Convert.ToBase64String(signatureBytes);
-
-            var result = await _siriusApiClient.Withdrawals.ExecuteAsync(new WithdrawalExecuteRequest
-            {
-                RequestId = $"{_brokerAccountId}_{command.OperationId}",
-                Document = document,
-                Signature = signature
-            });
-
-            
-            if (result.ResultCase == WithdrawalExecuteResponse.ResultOneofCase.Error)
-            {
-                switch (result.Error.ErrorCode)
+                Properties =
                 {
-                    case WithdrawalExecuteErrorResponseBody.Types.ErrorCode.IsNotAuthorized:
-                    case WithdrawalExecuteErrorResponseBody.Types.ErrorCode.Unknown:
+                    { KnownProperties.UserId, command.ClientId.ToString() }, 
+                    { KnownProperties.WalletId, walletId },
+                    { "WithdrawalId", command.OperationId.ToString()},
+                    { "WalletType", walletType }
+                }
+            };
+            
+            var idempotencyId = $"withdrawal_${_brokerAccountId}_{command.OperationId}";
+            var documentBuilder = WithdrawalV2DocumentBuilder.Create();
+            documentBuilder.SetBrokerAccountId(withdrawalDocument.BrokerAccountId);
+            documentBuilder.SetAssetId(withdrawalDocument.AssetId);
+            documentBuilder.SetAmount(withdrawalDocument.Amount);
+            documentBuilder.SetDestinationAddress(withdrawalDocument.DestinationDetails.Address);
+            documentBuilder.SetIdempotencyId(idempotencyId);
+            foreach (var property in withdrawalDocument.Properties)
+            {
+                documentBuilder.SetProperty(property.Key, property.Value);
+            }
+
+            var signatureBytes = _encryptionService.GenerateSignature(Encoding.UTF8.GetBytes(documentBuilder.Build()),  _privateKeyService.GetPrivateKey());
+            var result = await _siriusApiClient.WithdrawalsV2.ExecuteAsync(new()
+            {
+                IdempotencyId = idempotencyId,
+                Signature = ByteString.CopyFrom(signatureBytes),
+                Document = withdrawalDocument,
+            });
+            
+            if (result.Error != null)
+            {
+                switch (result.Error.Code)
+                {
+                    case WithdrawalExecuteError.Types.ErrorCode.NotAuthorized:
+                    case WithdrawalExecuteError.Types.ErrorCode.Unknown:
                         LogError(operationId, result.Error);
                         return CommandHandlingResult.Fail(TimeSpan.FromSeconds(10));
-                    case WithdrawalExecuteErrorResponseBody.Types.ErrorCode.InvalidParameters:
-                    case WithdrawalExecuteErrorResponseBody.Types.ErrorCode.NotFound:
+                    case WithdrawalExecuteError.Types.ErrorCode.InvalidParameters:
+                    case WithdrawalExecuteError.Types.ErrorCode.DomainProblem:
                         LogError(operationId, result.Error);
                         return CommandHandlingResult.Ok(); // abort
-                    case WithdrawalExecuteErrorResponseBody.Types.ErrorCode.NotEnoughBalance:
+                    case WithdrawalExecuteError.Types.ErrorCode.NotEnoughBalance:
                         LogWarning(operationId, result.Error);
                         return CommandHandlingResult.Fail(TimeSpan.FromSeconds(_notEnoughBalanceRetryDelayInSeconds));
-                    case WithdrawalExecuteErrorResponseBody.Types.ErrorCode.InvalidAddress:
-                    case WithdrawalExecuteErrorResponseBody.Types.ErrorCode.AmountIsTooLow:
-                        LogWarning(operationId, result.Error);
-                        return CommandHandlingResult.Ok(); // abort
                 }
             }
 
-            _log.Info("Cashout sent to Sirius", context: new { operationId, withdrawal = result.Body.Withdrawal.ToJson()});
+            _log.Info("Cashout sent to Sirius", context: new { operationId, withdrawalId = result.Payload.Id});
 
             return CommandHandlingResult.Ok();
         }
 
-        private void LogWarning(string operationId, WithdrawalExecuteErrorResponseBody error)
+        private void LogWarning(string operationId, WithdrawalExecuteError error)
         {
             _log.Warning(message: "Cashout to Sirius failed", context: new { operationId, error = error.ToJson() });
         }
-        private void LogError(string operationId, WithdrawalExecuteErrorResponseBody error)
+        private void LogError(string operationId, WithdrawalExecuteError error)
         {
             _log.Error(message: "Cashout to Sirius failed", context: new { operationId, error = error.ToJson() });
         }
