@@ -126,7 +126,8 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                             if (item.WithdrawalUpdateId <= _lastCursor)
                                 continue;
 
-                            if (string.IsNullOrWhiteSpace(item.Withdrawal.UserNativeId))
+                            
+                            if (string.IsNullOrWhiteSpace(item.Withdrawal.GetUserNativeId()))
                             {
                                 _log.Warning("UserNativeId is empty", context: new
                                 {
@@ -173,8 +174,8 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                 new
                                 {
                                     siriusWithdrawalId = item.Withdrawal.Id,
-                                    clientId = item.Withdrawal.UserNativeId,
-                                    walletId = item.Withdrawal.AccountReferenceId == item.Withdrawal.UserNativeId ? item.Withdrawal.UserNativeId : item.Withdrawal.AccountReferenceId,
+                                    clientId = item.Withdrawal.GetUserNativeId(),
+                                    walletId = item.Withdrawal.AccountReferenceId == item.Withdrawal.GetUserNativeId() ? item.Withdrawal.GetUserNativeId() : item.Withdrawal.AccountReferenceId,
                                     fees = item.Withdrawal.ActualFees.ToJson(),
                                     item.Withdrawal.State,
                                     TransactionHash = item.Withdrawal.TransactionInfo?.TransactionId
@@ -186,7 +187,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                 operationId = Guid.Empty;
                             }
 
-                            Guid? walletId = item.Withdrawal.AccountReferenceId == item.Withdrawal.UserNativeId ? null : Guid.Parse(item.Withdrawal.AccountReferenceId);
+                            Guid? walletId = item.Withdrawal.AccountReferenceId == item.Withdrawal.GetUserNativeId() ? null : Guid.Parse(item.Withdrawal.AccountReferenceId);
 
                             switch (item.Withdrawal.State)
                             {
@@ -194,7 +195,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                     _cqrsEngine.PublishEvent(new CashoutCompletedEvent
                                     {
                                         OperationId = operationId,
-                                        ClientId = Guid.Parse(item.Withdrawal.UserNativeId),
+                                        ClientId = Guid.Parse(item.Withdrawal.GetUserNativeId()),
                                         WalletId = walletId,
                                         AssetId = asset.Id,
                                         Amount = Convert.ToDecimal(item.Withdrawal.Amount.Value),
@@ -233,12 +234,12 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                         ? operationContext.Fee.Size.TruncateDecimalPlaces(asset.Accuracy, true)
                                         : (amount * operationContext.Fee.Size).TruncateDecimalPlaces(asset.Accuracy, true);
 
-                                    var refund = await _refundsRepository.GetAsync(item.Withdrawal.UserNativeId,
+                                    var refund = await _refundsRepository.GetAsync(item.Withdrawal.GetUserNativeId(),
                                                      item.Withdrawal.TransferContext.WithdrawalReferenceId) ??
                                                  await _refundsRepository.AddAsync(
                                                      item.Withdrawal.TransferContext.WithdrawalReferenceId,
-                                                     item.Withdrawal.UserNativeId,
-                                                     walletId?.ToString() ?? item.Withdrawal.UserNativeId,
+                                                     item.Withdrawal.GetUserNativeId(),
+                                                     walletId?.ToString() ?? item.Withdrawal.GetUserNativeId(),
                                                      operationContext.GlobalSettings.FeeSettings.TargetClients.Cashout,
                                                      asset.Id,
                                                      asset.SiriusAssetId,
