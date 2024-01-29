@@ -175,7 +175,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                 {
                                     siriusWithdrawalId = item.Withdrawal.Id,
                                     clientId = item.Withdrawal.GetUserNativeId(),
-                                    walletId = item.Withdrawal.AccountReferenceId == item.Withdrawal.GetUserNativeId() ? item.Withdrawal.GetUserNativeId() : item.Withdrawal.AccountReferenceId,
+                                    walletId = item.Withdrawal.GetAccountReferenceId() == item.Withdrawal.GetUserNativeId() ? item.Withdrawal.GetUserNativeId() : item.Withdrawal.GetAccountReferenceId(),
                                     fees = item.Withdrawal.ActualFees.ToJson(),
                                     item.Withdrawal.State,
                                     TransactionHash = item.Withdrawal.TransactionInfo?.TransactionId
@@ -187,7 +187,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                 operationId = Guid.Empty;
                             }
 
-                            Guid? walletId = item.Withdrawal.AccountReferenceId == item.Withdrawal.GetUserNativeId() ? null : Guid.Parse(item.Withdrawal.AccountReferenceId);
+                            Guid? walletId = item.Withdrawal.GetAccountReferenceId() == item.Withdrawal.GetUserNativeId() ? null : Guid.Parse(item.Withdrawal.GetAccountReferenceId());
 
                             switch (item.Withdrawal.State)
                             {

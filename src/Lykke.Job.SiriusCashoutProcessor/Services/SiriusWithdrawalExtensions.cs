@@ -17,6 +17,21 @@ public static class SiriusWithdrawalExtensions
         }
 
         //fallback to old property
-        return !string.IsNullOrWhiteSpace(withdrawal.UserNativeId) ? withdrawal.UserNativeId : null;
+        return withdrawal.UserNativeId;
+    }
+
+    public static string GetAccountReferenceId(this WithdrawalResponse withdrawal)
+    {
+        
+        if (withdrawal == null)
+            throw new ArgumentNullException(nameof(withdrawal));
+
+        if(withdrawal.Properties.TryGetValue(KnownProperties.WalletId, out var walletId))
+        {
+            return walletId;
+        }
+
+        //fallback to old property
+        return withdrawal.AccountReferenceId;
     }
 }
