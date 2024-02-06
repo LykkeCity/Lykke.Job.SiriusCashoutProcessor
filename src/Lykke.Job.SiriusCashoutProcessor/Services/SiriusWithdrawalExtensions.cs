@@ -2,7 +2,7 @@
 using Swisschain.Sirius.Api.ApiClient.Utils.Builders.V2;
 using Swisschain.Sirius.Api.ApiContract.Withdrawal;
 
-namespace Lykke.Job.SiriusCashoutProcessor.Services;
+namespace Lykke.Job.SiriusCashoutProcessor.Services
 {
     public static class SiriusWithdrawalExtensions
     {
