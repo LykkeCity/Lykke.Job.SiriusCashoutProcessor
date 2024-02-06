@@ -184,7 +184,8 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
 
                             if (!Guid.TryParse(item.Withdrawal.GetWithdrawalId(), out var operationId))
                             {
-                                throw new InvalidOperationException($"Failed to parse withdrawal ID as a GUID {item.Withdrawal.GetWithdrawalId()}");
+                                _log.Warning($"Failed to parse withdrawal ID as a GUID: {item.Withdrawal.GetWithdrawalId()}", context: new { SiriusWithdrawalId = item.Withdrawal.Id });
+                                operationId = Guid.Empty;
                             }
 
                             Guid? walletId = item.Withdrawal.GetAccountReferenceId() == item.Withdrawal.GetUserNativeId() ? null : Guid.Parse(item.Withdrawal.GetAccountReferenceId());
