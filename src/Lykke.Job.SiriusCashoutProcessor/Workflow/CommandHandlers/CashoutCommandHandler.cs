@@ -223,7 +223,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
                 {
                     { KnownProperties.UserId, command.ClientId.ToString() }, 
                     { KnownProperties.WalletId, walletId },
-                    { "WithdrawalId", command.OperationId.ToString()},
+                    { WithdrawalProperties.WithdrawalId, command.OperationId.ToString()},
                     { "WalletType", walletType }
                 }
             };

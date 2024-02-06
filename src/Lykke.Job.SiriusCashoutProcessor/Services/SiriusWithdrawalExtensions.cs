@@ -34,5 +34,21 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
             //fallback to old property
             return withdrawal.AccountReferenceId;
         }
+
+        public static string GetWithdrawalId(this WithdrawalResponse withdrawal)
+        {
+            if(withdrawal == null)
+            {
+                throw new ArgumentNullException(nameof(withdrawal));
+            }
+
+            if(withdrawal.Properties.TryGetValue(WithdrawalProperties.WithdrawalId, out var withdrawalId))
+            {
+                return withdrawalId;
+            }
+
+            // falback to the old property
+            return withdrawal.TransferContext?.WithdrawalReferenceId;
+        }
     }
 }
