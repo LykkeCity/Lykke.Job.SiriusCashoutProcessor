@@ -170,7 +170,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                 continue;
                             }
 
-                            await _withdrawalLogsRepository.AddAsync(item.Withdrawal.TransferContext.WithdrawalReferenceId, $"Withdrawal update (state: {item.Withdrawal.State.ToString()})",
+                            await _withdrawalLogsRepository.AddAsync(item.Withdrawal.GetWithdrawalId(), $"Withdrawal update (state: {item.Withdrawal.State.ToString()})",
                                 new
                                 {
                                     siriusWithdrawalId = item.Withdrawal.Id,
@@ -182,9 +182,9 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                 }.ToJson()
                             );
 
-                            if (!Guid.TryParse(item.Withdrawal.TransferContext.WithdrawalReferenceId, out var operationId))
+                            if (!Guid.TryParse(item.Withdrawal.GetWithdrawalId(), out var operationId))
                             {
-                                operationId = Guid.Empty;
+                                throw new InvalidOperationException($"Failed to parse withdrawal ID as a GUID {item.Withdrawal.GetWithdrawalId()}");
                             }
 
                             Guid? walletId = item.Withdrawal.GetAccountReferenceId() == item.Withdrawal.GetUserNativeId() ? null : Guid.Parse(item.Withdrawal.GetAccountReferenceId());
@@ -210,7 +210,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                     break;
                                 case WithdrawalState.Failed:
                                     await _withdrawalLogsRepository.AddAsync(
-                                        item.Withdrawal.TransferContext.WithdrawalReferenceId,
+                                        item.Withdrawal.GetWithdrawalId(),
                                         "Withdrawal failed, finishing without Refund",
                                         null);
                                     await _lastCursorRepository.AddAsync(_brokerAccountId, item.WithdrawalUpdateId);
@@ -220,7 +220,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                 case WithdrawalState.Refunded:
                                 {
                                     await _withdrawalLogsRepository.AddAsync(
-                                        item.Withdrawal.TransferContext.WithdrawalReferenceId,
+                                        item.Withdrawal.GetWithdrawalId(),
                                         "Withdrawal failed, processing refund in ME",
                                         new {WithdrawalError = item.Withdrawal.Error?.ToJson()}.ToJson());
 
@@ -235,9 +235,9 @@ namespace Lykke.Job.SiriusCashoutProcessor.Services
                                         : (amount * operationContext.Fee.Size).TruncateDecimalPlaces(asset.Accuracy, true);
 
                                     var refund = await _refundsRepository.GetAsync(item.Withdrawal.GetUserNativeId(),
-                                                     item.Withdrawal.TransferContext.WithdrawalReferenceId) ??
+                                                     item.Withdrawal.GetWithdrawalId()) ??
                                                  await _refundsRepository.AddAsync(
-                                                     item.Withdrawal.TransferContext.WithdrawalReferenceId,
+                                                     item.Withdrawal.GetWithdrawalId(),
                                                      item.Withdrawal.GetUserNativeId(),
                                                      walletId?.ToString() ?? item.Withdrawal.GetUserNativeId(),
                                                      operationContext.GlobalSettings.FeeSettings.TargetClients.Cashout,
