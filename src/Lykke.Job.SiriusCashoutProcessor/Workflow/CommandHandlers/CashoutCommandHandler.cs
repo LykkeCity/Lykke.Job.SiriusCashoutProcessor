@@ -80,7 +80,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
                 walletId = clientId;
             }
 
-            var walletType = !string.IsNullOrWhiteSpace(walletId) ? "API" : "Trading";
+            var walletType = walletId != clientId ? "API" : "Trading";
 
             var accountSearchResponse = await _siriusApiClient.Accounts.SearchAsync(new AccountSearchRequest
             {
