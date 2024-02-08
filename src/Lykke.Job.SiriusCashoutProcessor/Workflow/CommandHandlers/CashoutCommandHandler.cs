@@ -277,7 +277,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
 
             var signatureBytes = _encryptionService.GenerateSignature(Encoding.UTF8.GetBytes(document),  _privateKeyService.GetPrivateKey());
 
-            _log.Info($"Withdrawal document to sign: [{document}]", new 
+            _log.Info($"Withdrawal document to sign: [{document}]. Original address: [{withdrawalDocument.DestinationDetails.Address}]. Sirius blockchain: [{blockchainId}]", new 
             { 
                 operationId
             });
