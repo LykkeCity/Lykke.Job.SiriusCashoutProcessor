@@ -240,7 +240,15 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
                 documentBuilder.SetProperty(property.Key, property.Value);
             }
 
-            var signatureBytes = _encryptionService.GenerateSignature(Encoding.UTF8.GetBytes(documentBuilder.Build()),  _privateKeyService.GetPrivateKey());
+            var document = documentBuilder.Build();
+
+            var signatureBytes = _encryptionService.GenerateSignature(Encoding.UTF8.GetBytes(document),  _privateKeyService.GetPrivateKey());
+
+            _log.Info($"Withdrawal document: [{document}]", new 
+            { 
+                operationId
+            });
+
             var result = await _siriusApiClient.WithdrawalsV2.ExecuteAsync(new()
             {
                 IdempotencyId = idempotencyId,
