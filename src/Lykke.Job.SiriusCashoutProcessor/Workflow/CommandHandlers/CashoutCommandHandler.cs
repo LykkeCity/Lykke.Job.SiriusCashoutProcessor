@@ -233,7 +233,40 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
             documentBuilder.SetBrokerAccountId(withdrawalDocument.BrokerAccountId);
             documentBuilder.SetAssetId(withdrawalDocument.AssetId);
             documentBuilder.SetAmount(withdrawalDocument.Amount);
-            documentBuilder.SetDestinationAddress(withdrawalDocument.DestinationDetails.Address);
+
+            var assetResponse = await _siriusApiClient.AssetsV2.SearchAsync(new Swisschain.Sirius.Api.ApiContract.V2.Assets.AssetSearchRequest
+            {
+                Id = command.SiriusAssetId,
+                Pagination = new PaginationInt64
+                {
+                    Limit = 1
+                }
+            });
+
+            if(assetResponse.ResultCase != Swisschain.Sirius.Api.ApiContract.V2.Assets.AssetSearchResponse.ResultOneofCase.Payload)
+            {
+                throw new InvalidOperationException($"Failed to get Sirius asset: [{command.SiriusAssetId}]. Error: [{assetResponse.Error.Code}], [{assetResponse.Error.Message}]");
+            }
+
+            var blockchainId = assetResponse.Payload.Items?.FirstOrDefault()?.BlockchainId ?? 
+                throw new InvalidOperationException($"Sirius asset is not found: [{command.SiriusAssetId}]");
+
+            var addressFormatsResponse = await _siriusApiClient.Addresses.GetFormatsAsync(new Swisschain.Sirius.Api.ApiContract.Address.AddressGetFormatsRequest
+            {
+                BlockchainId = blockchainId,
+                Address = withdrawalDocument.DestinationDetails.Address
+            });
+
+            if(addressFormatsResponse.ResultCase != Swisschain.Sirius.Api.ApiContract.Address.AddressGetFormatsResponse.ResultOneofCase.Body)
+            {
+                throw new InvalidOperationException($"Failed to get Sirius address formats: [{withdrawalDocument.DestinationDetails.Address}], blockchain: [{blockchainId}]. Error: [{addressFormatsResponse.Error.ErrorCode}], [{addressFormatsResponse.Error.ErrorMessage}]");
+
+            }
+
+            var formattedAddress = addressFormatsResponse.Body.Formats?.FirstOrDefault()?.Address ?? 
+                throw new InvalidOperationException($"Sirius didn't return any formats for the address: : [{withdrawalDocument.DestinationDetails.Address}], blockchain: [{blockchainId}]");
+
+            documentBuilder.SetDestinationAddress(formattedAddress);
             documentBuilder.SetIdempotencyId(idempotencyId);
             foreach (var property in withdrawalDocument.Properties)
             {
@@ -244,7 +277,7 @@ namespace Lykke.Job.SiriusCashoutProcessor.Workflow.CommandHandlers
 
             var signatureBytes = _encryptionService.GenerateSignature(Encoding.UTF8.GetBytes(document),  _privateKeyService.GetPrivateKey());
 
-            _log.Info($"Withdrawal document: [{document}]", new 
+            _log.Info($"Withdrawal document to sign: [{document}]. Original address: [{withdrawalDocument.DestinationDetails.Address}]. Sirius blockchain: [{blockchainId}]", new 
             { 
                 operationId
             });
