@@ -36,7 +36,7 @@ SiriusApiServiceClient:
   GrpcServiceUrl:
     settings-key: SiriusApi-ServiceUrl
   ApiKey:
-    settings-key: SiriusApi-ApiKey
+    settings-key: SiriusApi-CashoutProcessor-ApiKey
   BrokerAccountId:
     settings-key: SiriusApi-BrokerAccountId
 MatchingEngineClient:
